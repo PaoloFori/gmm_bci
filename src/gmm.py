@@ -12,7 +12,7 @@ class GMMClassifier:
         rospy.init_node('gmm_classifier', anonymous=True)
         
         rospy.Subscriber('/cvsa/eeg_power', eeg_power, self.callback)
-        self.pub = rospy.Publisher('/cvsa/neuroprediction/gmm', NeuroOutput, queue_size=10)
+        self.pub = rospy.Publisher('/cvsa/neuroprediction/icnic', NeuroOutput, queue_size=10)
         
         try:
             self.path_decoder = rospy.get_param('~path_gmm_model')
@@ -59,6 +59,7 @@ class GMMClassifier:
             self.model.weights_ = np.array(model_params['weights'])
             covariances = np.array(model_params['covariances'])
             self.model.covariances_ = covariances
+            self.classes = np.array(model_params['classes'])
 
             self.model.precisions_cholesky_ = np.array(
                 [np.linalg.cholesky(np.linalg.inv(cov)) for cov in covariances]
@@ -169,6 +170,7 @@ class GMMClassifier:
         output.hardpredict.data = hard_prob.tolist() 
         output.decoder.type = self.gmm_name
         output.decoder.path = self.path_decoder
+        output.decoder.classes = self.classes.tolist()
         
         self.pub.publish(output)
         

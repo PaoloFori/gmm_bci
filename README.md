@@ -94,7 +94,7 @@ This script is responsible for:
 
 ### 5. Output
 
-* **Topic:** `/cvsa/neuroprediction/gmm`
+* **Topic:** `/cvsa/neuroprediction/icnic`
 * **Data:** Publishes the classification probability based on the Gmm model. It is a NeuroOutput message
 
 ---

@@ -14,7 +14,7 @@ public:
             ROS_WARN("Parameter 'output_filename' doesn't found. Default: %s", output_filename_.c_str());
         }
 
-        std::string topic = "/cvsa/neuroprediction/gmm";
+        std::string topic = "/cvsa/neuroprediction/icnic";
         sub_ = nh.subscribe(topic, 10, &LoggerNode::callback, this);
     }
 

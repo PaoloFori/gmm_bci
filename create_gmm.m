@@ -24,6 +24,7 @@ nchannels = 39;
 nclasses = length(classes);
 filterOrder = 4;
 avg = 1;% 0.75;
+threshold_gmm_ic = 0.7;
 
 %% Load file
 [filenames, pathname] = uigetfile('*.gdf', 'Select GDF Files', 'MultiSelect', 'on');
@@ -175,7 +176,6 @@ end
 % update to work with subbands -> tesista
 K = 2;
 choosen_band = 1;
-threshold_gmm_ic = 0.7;
 
 sparsity_cf = squeeze(sparsity(minDurFix+minDurCue+1:end, choosen_band,:,:));
 artifacts_cf = squeeze(artifacts_data(minDurFix+minDurCue+1:end, choosen_band,:));
@@ -199,8 +199,10 @@ options = statset('MaxIter', 1000, 'Display', 'off');
 gmm_model = fitgmdist(data_2D_noArtif, K, 'Options', options, 'Replicates', 50);
 
 [~, sort_order] = sort(gmm_model.mu(:, 1), 'descend');
-idx_ic = sort_order(1);  % Indice del cluster GMM per 'ic'
-idx_nic = sort_order(2); % Indice del cluster GMM per 'nic'
+idx_ic = sort_order(1);  % Index cluster IC
+idx_nic = sort_order(2); 
+classes_icnic = zeros(1,2);
+classes_icnic(idx_ic) = 1;
 
 % Crea le etichette finali
 labels_gmm = {'IC', 'NIC'};
@@ -222,7 +224,7 @@ disp('centroids: ')
 disp(gmm_model.mu)
 
 %% save the gmm
-save_gmm(gmm_model, mu_features, sigma_features, filenames, save_path_gmm, o_l, o_r, frontal, c_l, c_r, excluded_chs, channels_label, bands(choosen_band))
+save_gmm(gmm_model, mu_features, sigma_features, filenames, save_path_gmm, o_l, o_r, frontal, c_l, c_r, excluded_chs, channels_label, bands(choosen_band), classes_icnic)
 
 %% extract and save data for the QDA
 data = squeeze(trial_data(minDurCue+minDurFix+1:end,choosen_band,:,:)); % take just the 8-14 band
@@ -246,7 +248,7 @@ disp(['QDA model saved in ', save_path_qda_dataset]);
 
 %% ----------- FUNCTIONS --------
 % save gmm
-function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, o_l_idx, o_r_idx, frontal_idx, c_l_idx, c_r_idx, excluded_chs, channels_labels, band)
+function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, o_l_idx, o_r_idx, frontal_idx, c_l_idx, c_r_idx, excluded_chs, channels_labels, band, classes_icnic, threshold_gmm_ic)
     % --- Dati GMM model ---
     % gmm_model:       gmm model 
     % mu_features:     mean of the data
@@ -283,6 +285,7 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
         covStrings{i} = sprintf('    - \n%s', strjoin(matrixRowStrings, '\n'));
     end
     covariancesStr = strjoin(covStrings, '\n');
+    classes_icnic_str = strjoin(arrayfun(@(x) sprintf('%d', x), classes_icnic, 'UniformOutput', false), ', ');
 
     % meta data
     filenamesStr = strjoin(files, ';\n');
@@ -349,7 +352,9 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
                      '    mu: [%s]\n' ...
                      '    sigma: [%s]\n' ...
                      '    band: \n%s\n' ...
+                     '    threshold_gmm_ic: %d\n' ...
                      '  model_params:\n' ...
+                     '    classes: [%s] # 0=NIC, 1=IC\n', ...
                      '    K: %d\n' ...
                      '    weights: [%s]\n' ...
                      '    means: \n%s\n' ...
@@ -371,6 +376,8 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
                      muStr, ...
                      sigmaStr, ...
                      bands_str, ...
+                     threshold_gmm_ic, ...
+                     classes_icnic_str, ...
                      K, ...
                      weightsStr, ...
                      meansStr, ...
