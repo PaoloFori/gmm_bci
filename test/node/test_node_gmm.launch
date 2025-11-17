@@ -1,0 +1,26 @@
+<launch>
+
+    <!-- KMEANS -->
+    <!-- arguments -->
+    <arg name="path_gmm_model" default='/home/paolo/cvsa/ic_cvsa_ws/src/gmm_cvsa/cfg/test.yaml'/>
+    <arg name="samplerate" default='16'/>
+
+    <!-- node -->
+    <node name="gmm_node" pkg="gmm_cvsa" type="gmm.py" output="screen"> 
+        <param name="path_gmm_model"   value="$(arg path_gmm_model)"/>
+    </node>
+
+    <!-- TEST NODES -->
+    <!-- logger node -->
+    <node pkg="gmm_cvsa" type="test_logger_gmm_cvsa" name="test_logger_gmm_cvsa" output="screen">
+        <param name="output_filename" value="$(find gmm_cvsa)/test/node/classified.csv"/>
+    </node>
+    
+    <!-- publisher node -->
+    <node pkg="gmm_cvsa" type="test_publisher_gmm_cvsa" name="test_publisher_gmm_cvsa" output="screen">
+        <param name="csv_file" value="$(find gmm_cvsa)/test/processed_data.csv"/>
+        <param name="sample_rate" value="$(arg samplerate)"/> 
+    </node>
+
+
+</launch>

@@ -1,0 +1,38 @@
+GmmModelCfg:
+  name: "gmm_model"
+  filenames: "c7.20250217.160026.calibration.cvsa_lbrb.gdf;
+c7.20250217.161215.calibration.cvsa_lbrb.gdf;
+c7.20250217.164432.calibration.cvsa_lbrb.gdf"
+  params:
+    nfeatures: 3
+    occipital_left_idx: [13, 17, 29, 30, 33, 34, 37]
+    occipital_left: ['P3', 'O1', 'P5', 'P1', 'PO5', 'PO3', 'PO7']
+    occipital_right_idx: [15, 18, 31, 32, 35, 36, 38]
+    occipital_right: ['P4', 'O2', 'P2', 'P6', 'PO4', 'PO6', 'PO8']
+    frontal_idx: [3, 4, 5, 20, 21]
+    frontal: ['F3', 'FZ', 'F4', 'F1', 'F2']
+    central_left_idx: [6, 8, 11, 22, 25, 27]
+    central_left: ['FC1', 'C3', 'CP1', 'FC3', 'C1', 'CP3']
+    central_right_idx: [7, 10, 12, 24, 26, 28]
+    central_right: ['FC2', 'C4', 'CP2', 'FC4', 'C2', 'CP4']
+    excluded_idx: [1, 2, 19]
+    excluded: ['FP1', 'FP2', 'EOG']
+    mu: [0.18571173, 0.12881804, 22.10021316]
+    sigma: [0.13553227, 0.06618129, 7.59819698]
+    band: 
+    - [8, 14]
+  model_params:
+    K: 2
+    weights: [0.57582509, 0.42417491]
+    means: 
+    - [0.49763139, 0.49215988, 0.29438150]
+    - [-0.67554357, -0.66811590, -0.39962819]
+    covariances: 
+    - 
+      - [0.99704277, 0.33914087, 0.06652590]
+      - [0.33914087, 0.99997861, -0.02756756]
+      - [0.06652590, -0.02756756, 1.32827507]
+    - 
+      - [0.21082991, 0.07563187, -0.00489270]
+      - [0.07563187, 0.22417655, -0.01792618]
+      - [-0.00489270, -0.01792618, 0.27636107]
