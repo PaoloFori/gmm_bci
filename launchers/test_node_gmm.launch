@@ -1,0 +1,14 @@
+<launch>
+
+    <!-- GMM -->
+    <!-- arguments -->
+    <arg name="path_gmm_model" default='$(find gmm_cvsa)/cfg/test.yaml'/>
+    <arg name="samplerate" default='16'/>
+
+    <!-- node -->
+    <node name="gmm_node" pkg="gmm_cvsa" type="gmm.py" output="screen"> 
+        <param name="path_gmm_model"   value="$(arg path_gmm_model)"/>
+    </node>
+
+
+</launch>

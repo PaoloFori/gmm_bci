@@ -17,20 +17,20 @@ class GMMClassifier:
         try:
             self.path_decoder = rospy.get_param('~path_gmm_model')
         except KeyError as e:
-            rospy.logfatal(f"Parametro mancante: {e}. Assicurati di lanciarlo con un launch file.")
+            rospy.logfatal(f"[GMM] Parametro mancante: {e}. Assicurati di lanciarlo con un launch file.")
             return
         conf = self.configure()
         
         if not conf:
-            rospy.logfatal("Erorr in the GMM configuration.")
+            rospy.logfatal("[GMM] Erorr in the GMM configuration.")
             return
         else:
-            rospy.loginfo("GMM configurated correctly.")
+            rospy.loginfo("[GMM] GMM configurated correctly.")
         
         rospy.spin()
         
     def configure(self):
-        rospy.loginfo(f"Loading GMM from: {self.path_decoder}")
+        rospy.loginfo(f"[GMM] Loading GMM from: {self.path_decoder}")
         with open(self.path_decoder, 'r') as file:
             params = yaml.safe_load(file)['GmmModelCfg']['params']
             
@@ -65,10 +65,10 @@ class GMMClassifier:
                 [np.linalg.cholesky(np.linalg.inv(cov)) for cov in covariances]
                 )
         except KeyError as e:
-            rospy.logwarn(f"YAML file error parameter: {e}")
+            rospy.logwarn(f"[{self.gmm_name}] YAML file error parameter: {e}")
             return False
         except Exception as e:
-            rospy.logwarn(f"General error in the GMM model loading: {e}")
+            rospy.logwarn(f"[{self.gmm_name}]General error in the GMM model loading: {e}")
             return False
             
         return True
