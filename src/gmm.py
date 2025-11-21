@@ -114,8 +114,15 @@ class GMMClassifier:
             else:
                 gi = 0
 
-            pot_occipital = mean_roi[3] + mean_roi[4] 
-            pot_total_roi = np.sum(mean_roi)
+            mean_roi_raw = np.array([
+                np.mean(c_signal[self.frontal]),
+                np.mean(c_signal[self.c_l]),
+                np.mean(c_signal[self.c_r]),
+                np.mean(c_signal[self.o_l]),
+                np.mean(c_signal[self.o_r])
+            ])
+            pot_occipital = np.max(mean_roi_raw[3], mean_roi_raw[4])
+            pot_total_roi = np.sum(mean_roi_raw)
 
             if pot_total_roi > 0:
                 occipital_power = pot_occipital / pot_total_roi
