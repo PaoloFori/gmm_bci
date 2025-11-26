@@ -24,6 +24,7 @@ nchannels = 39;
 nclasses = length(classes);
 filterOrder = 4;
 avg = 1;% 0.75;
+threshold_gmm_ic = 0.7;
 
 %% Load file
 [filenames, pathname] = uigetfile('*.gdf', 'Select GDF Files', 'MultiSelect', 'on');
@@ -32,8 +33,8 @@ if ischar(filenames)
 end
 subject = filenames{1}(1:2);
 time_str = datestr(now, 'ddmmyyyy_HHMMSS');
-kmeans_file = ['gmm_' subject '_' time_str '.yaml'];
-save_path_gmm = [DATAPAH, 'gmm_cvsa/cfg/' kmeans_file];
+gmm_file = ['gmm_' subject '_' time_str '.yaml'];
+save_path_gmm = [DATAPAH, 'gmm_cvsa/cfg/' gmm_file];
 save_path_qda_dataset = [DATAPAH 'qda_cvsa/create_qda/datasets/gmm/data_' subject '_' time_str '.mat'];
 
 %% concatenate the files
@@ -150,12 +151,24 @@ for idx_trial_class = 1:2:ntrial
 end
 trial_data = tmp_data; % samples x bands x channels x trials
 artifacts_data = tmp_art;
-trial_data(:,:,[1, 2, 19],:) = 0; % remove the power of the EOG channel, FP1 anf FP2 --> also in sparsity
 
 %% compute sparsity
 % define regions
 nsparsity = 3;
 sparsity = nan(min_trial_data, nbands, ntrial, nsparsity); % sample x band x trial x sparsity
+o_l_ch = {'P3', 'O1', 'P5', 'P1', 'PO5', 'PO3', 'PO7'};
+o_r_ch = {'P4', 'O2', 'P2', 'P6', 'PO4', 'PO6', 'PO8'};
+c_l_ch = {'FC1', 'C3', 'CP1', 'FC3', 'C1', 'CP3'};
+c_r_ch = {'FC2', 'C4', 'CP2', 'FC4', 'C2', 'CP4'};
+excl_ch = {'FP1', 'FP2', 'EOG'};
+
+[~, o_l] = ismember(o_l_labels, channels_label);
+[~, o_r] = ismember(o_r_labels, channels_label);
+[~, c_l] = ismember(c_l_labels, channels_label);
+[~, c_r] = ismember(c_r_labels, channels_label);
+[~, excl_chs] = ismember(excl_labels, channels_label);
+
+type = 'cvsa';
 
 for c = 1:ntrial
     c_data = squeeze(trial_data(:,:,:,c)); % samples x band x channels
@@ -166,16 +179,15 @@ for c = 1:ntrial
         for idx_band = 1:nbands
             tmp = squeeze(c_sample(idx_band,:)); % 1 x channels
 
-            [sparsity(sample, idx_band, c,:), label_sparsity, o_l, o_r, frontal, c_l, c_r, excluded_chs] = compute_features_kmeans(tmp);
+            [sparsity(sample, idx_band, c,:), ~] = compute_features_icnic(tmp, type, o_l, o_r, c_l, c_r, excl_chs);
         end
     end
 end
 
-%% ----------------- KMEANS -----------------
+%% ----------------- gmm -----------------
 % update to work with subbands -> tesista
 K = 2;
 choosen_band = 1;
-threshold_gmm_ic = 0.7;
 
 sparsity_cf = squeeze(sparsity(minDurFix+minDurCue+1:end, choosen_band,:,:));
 artifacts_cf = squeeze(artifacts_data(minDurFix+minDurCue+1:end, choosen_band,:));
@@ -199,8 +211,10 @@ options = statset('MaxIter', 1000, 'Display', 'off');
 gmm_model = fitgmdist(data_2D_noArtif, K, 'Options', options, 'Replicates', 50);
 
 [~, sort_order] = sort(gmm_model.mu(:, 1), 'descend');
-idx_ic = sort_order(1);  % Indice del cluster GMM per 'ic'
-idx_nic = sort_order(2); % Indice del cluster GMM per 'nic'
+idx_ic = sort_order(1);  % Index cluster IC
+idx_nic = sort_order(2); 
+classes_icnic = zeros(1,2);
+classes_icnic(idx_ic) = 1;
 
 % Crea le etichette finali
 labels_gmm = {'IC', 'NIC'};
@@ -221,8 +235,8 @@ fprintf('Mappatura: Cluster GMM %d -> "ic", Cluster GMM %d -> "nic"\n', idx_ic, 
 disp('centroids: ')
 disp(gmm_model.mu)
 
-%% save the kmeans
-save_gmm(gmm_model, mu_features, sigma_features, filenames, save_path_gmm, o_l, o_r, frontal, c_l, c_r, excluded_chs, channels_label, bands(choosen_band))
+%% save the gmm
+save_gmm(gmm_model, mu_features, sigma_features, filenames, save_path_gmm, o_l, o_r, frontal, c_l, c_r, excl_chs, channels_label, bands(choosen_band), classes_icnic, threshold_gmm_ic, type)
 
 %% extract and save data for the QDA
 data = squeeze(trial_data(minDurCue+minDurFix+1:end,choosen_band,:,:)); % take just the 8-14 band
@@ -241,17 +255,17 @@ for idx_trial =  1:ntrial
 end
 occipital = {'P3', 'PZ', 'P4', 'POZ', 'O1', 'O2', 'P5', 'P1', 'P2', 'P6', 'PO5', 'PO3', 'PO4', 'PO6', 'PO7', 'PO8', 'OZ'}; [~, ch_occipital] = ismember(occipital, channels_label);
 bands = bands(choosen_band);
-save(save_path_qda_dataset, 'X', 'y', 'kmeans_file', 'classes', 'ch_occipital', 'occipital', 'filenames', 'bands')
+save(save_path_qda_dataset, 'X', 'y', 'gmm_file', 'classes', 'ch_occipital', 'occipital', 'filenames', 'bands')
 disp(['QDA model saved in ', save_path_qda_dataset]);
 
 %% ----------- FUNCTIONS --------
-% save kmeans
-function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, o_l_idx, o_r_idx, frontal_idx, c_l_idx, c_r_idx, excluded_chs, channels_labels, band)
+% save gmm
+function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, o_l_idx, o_r_idx, frontal_idx, c_l_idx, c_r_idx, excluded_chs, channels_labels, band, classes_icnic, threshold_gmm_ic, type)
     % --- Dati GMM model ---
     % gmm_model:       gmm model 
     % mu_features:     mean of the data
     % sigma_features:  std of the data
-    % files:           file from which the kmeans is trained
+    % files:           file from which the gmm is trained
     % DATAPAH:         where to save
     % subject:         subject of the experiment
 
@@ -283,6 +297,7 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
         covStrings{i} = sprintf('    - \n%s', strjoin(matrixRowStrings, '\n'));
     end
     covariancesStr = strjoin(covStrings, '\n');
+    classes_icnic_str = strjoin(arrayfun(@(x) sprintf('%d', x), classes_icnic, 'UniformOutput', false), ', ');
 
     % meta data
     filenamesStr = strjoin(files, ';\n');
@@ -329,8 +344,8 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
     excl_str = strjoin(arrayfun(@(x) sprintf('%d', x), excluded_chs, 'UniformOutput', false), ', ');
 
     % build the yaml
-    yamlContent = sprintf(['KmeansModelCfg:\n' ...
-                     '  name: "kmeans_model"\n' ...
+    yamlContent = sprintf(['GmmModelCfg:\n' ...
+                     '  name: "gmm_model"\n' ...
                      '  filenames: "%s"\n'...
                      '  params:\n' ...
                      '    nfeatures: %d\n' ...
@@ -349,7 +364,10 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
                      '    mu: [%s]\n' ...
                      '    sigma: [%s]\n' ...
                      '    band: \n%s\n' ...
+                     '    threshold_gmm_ic: %d\n' ...
                      '  model_params:\n' ...
+                     '    type: "%s"\n' ...
+                     '    classes: [%s] # 0=NIC, 1=IC\n', ...
                      '    K: %d\n' ...
                      '    weights: [%s]\n' ...
                      '    means: \n%s\n' ...
@@ -371,6 +389,9 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
                      muStr, ...
                      sigmaStr, ...
                      bands_str, ...
+                     threshold_gmm_ic, ...
+                     type, ...
+                     classes_icnic_str, ...
                      K, ...
                      weightsStr, ...
                      meansStr, ...
@@ -380,56 +401,5 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
     fprintf(fileID, '%s', yamlContent);
     fclose(fileID);
 
-    disp(['K-Means model saved in ', save_path_gmm]);
-end
-% sparsity 
-function [sparsity, label_sparsity, o_l, o_r, frontal, c_l, c_r, excluded_chs] = compute_features_kmeans(c_signal) %% in the features must be update for subbands
-    % take the one which contribute at the 95% of the energy
-    sparsity = nan(3,1);
-    label_sparsity = [{'LI'},{'GI'},{'GB'}];
-    o_l = sort([29 13 30 37 33 34 17]); o_r = sort([31 15 32 35 36 38 18]);
-    frontal = sort([3 4 5 20 21]); c_l = sort([6 22 25 8 11 27]); c_r = sort([7 24 26 10 12 28]);
-    excluded_chs = [1,2,19];
-
-    % --- LAP --- Calcola il LAP per tutti i punti nella finestra passata (window_signal)
-    % show the occipital lateralization that is strongand present during the CVSA
-    P_left_window  = mean(c_signal(o_l));
-    P_right_window = mean(c_signal(o_r));
-    LAP_history = (P_right_window - P_left_window) ./ (P_right_window + P_left_window + eps);
-    sparsity(1) = abs(LAP_history); % LAP_Mean
-
-    % --- Gini Index + Occipital Power ---  -> when high there is a zone stronger, so IC
-    % show the focusing is weighted in with the power in the occipital part, in this way ig CVSA then strong value 
-    non_zeros_chs = setdiff(1:size(c_signal,2), excluded_chs);
-    global_mean = mean(c_signal(non_zeros_chs)); % car filter
-    current_signal_normalized = c_signal - global_mean; % remove the global energy
-    mean_roi = [mean(current_signal_normalized(frontal)), mean(current_signal_normalized(c_l)), ...
-        mean(current_signal_normalized(c_r)), mean(current_signal_normalized(o_l)), ...
-        mean(current_signal_normalized(o_r))];
-    mean_roi = abs(mean_roi); % make sure the energy is positive--> we are using peak and valli with same significance
-    mean_roi_ordered = sort(mean_roi);
-    n = length(mean_roi_ordered);
-    sum_roi_p = 0;
-    for i = 1:n
-        sum_roi_p = sum_roi_p + (n+1-i) * mean_roi_ordered(i);
-    end
-    total_sum = sum(mean_roi_ordered);
-    if total_sum > 0
-        gi = (1/n) * (n+1-2*sum_roi_p/total_sum);
-    else
-        gi = 0;
-    end
-    % compute the weight factor
-    pot_occipital = mean_roi(4) + mean_roi(5);
-    pot_total_roi = sum(mean_roi); % Somma di F, CL, CR, OL, OR
-    if pot_total_roi > 0
-        occipital_power = pot_occipital / pot_total_roi;
-    else
-        occipital_power = 0; 
-    end
-    sparsity(2) = occipital_power * gi;
-
-    % --- GB ---
-    % return the global power mean, 
-    sparsity(3) = global_mean;
+    disp(['GMM model saved in ', save_path_gmm]);
 end

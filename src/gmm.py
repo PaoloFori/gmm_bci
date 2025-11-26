@@ -11,9 +11,6 @@ class GMMClassifier:
     def __init__(self):
         rospy.init_node('gmm_classifier', anonymous=True)
         
-        rospy.Subscriber('/cvsa/eeg_power', eeg_power, self.callback)
-        self.pub = rospy.Publisher('/cvsa/neuroprediction/icnic', NeuroOutput, queue_size=10)
-        
         try:
             self.path_decoder = rospy.get_param('~path_gmm_model')
         except KeyError as e:
@@ -27,6 +24,10 @@ class GMMClassifier:
         else:
             rospy.loginfo("[GMM] GMM configurated correctly.")
         
+        
+        rospy.Subscriber('/cvsa/eeg_power', eeg_power, self.callback)
+        self.pub = rospy.Publisher('/cvsa/neuroprediction/icnic', NeuroOutput, queue_size=10)
+
         rospy.spin()
         
     def configure(self):
@@ -60,6 +61,7 @@ class GMMClassifier:
             covariances = np.array(model_params['covariances'])
             self.model.covariances_ = covariances
             self.classes = np.array(model_params['classes'])
+            self.type = model_params['type']
 
             self.model.precisions_cholesky_ = np.array(
                 [np.linalg.cholesky(np.linalg.inv(cov)) for cov in covariances]
@@ -81,8 +83,14 @@ class GMMClassifier:
         for idx_band in range(0, nbands):
             c_signal = signal[idx_band,:]
             # --- 1. Feature LI (Lateralization Index) ---
-            P_left_window = np.mean(c_signal[self.o_l])
-            P_right_window = np.mean(c_signal[self.o_r])
+            if self.type == 'cvsa':
+                P_left_window = np.mean(c_signal[self.o_l])
+                P_right_window = np.mean(c_signal[self.o_r])
+            elif self.type == 'mi':
+                P_left_window = np.mean(c_signal[self.c_l])
+                P_right_window = np.mean(c_signal[self.c_r])
+            else:
+                return
 
             denominator = P_right_window + P_left_window + np.finfo(float).eps
             LAP_history = (P_right_window - P_left_window) / denominator
@@ -95,7 +103,6 @@ class GMMClassifier:
             global_mean = np.mean(c_signal[non_eog_chs])
             current_signal_normalized = c_signal - global_mean
             mean_roi = np.array([
-                np.mean(current_signal_normalized[self.frontal]),
                 np.mean(current_signal_normalized[self.c_l]),
                 np.mean(current_signal_normalized[self.c_r]),
                 np.mean(current_signal_normalized[self.o_l]),
@@ -114,22 +121,7 @@ class GMMClassifier:
             else:
                 gi = 0
 
-            mean_roi_raw = np.array([
-                np.mean(c_signal[self.frontal]),
-                np.mean(c_signal[self.c_l]),
-                np.mean(c_signal[self.c_r]),
-                np.mean(c_signal[self.o_l]),
-                np.mean(c_signal[self.o_r])
-            ])
-            pot_occipital = np.max(mean_roi_raw[3], mean_roi_raw[4])
-            pot_total_roi = np.sum(mean_roi_raw)
-
-            if pot_total_roi > 0:
-                occipital_power = pot_occipital / pot_total_roi
-            else:
-                occipital_power = 0
-
-            sparsity[idx_sparsity] = occipital_power * gi # GI
+            sparsity[idx_sparsity] = gi # GI
             idx_sparsity += 1
 
             # --- 3. Feature GB (Global Brain Activity) ---
