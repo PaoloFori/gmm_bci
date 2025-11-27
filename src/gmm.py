@@ -46,7 +46,6 @@ class GMMClassifier:
             self.sigma           = np.array(params['sigma'])
             self.o_l             = np.sort(np.array(params['occipital_left_idx']) - 1)
             self.o_r             = np.sort(np.array(params['occipital_right_idx']) - 1)
-            self.frontal         = np.sort(np.array(params['frontal_idx']) - 1)
             self.c_l             = np.sort(np.array(params['central_left_idx']) - 1)
             self.c_r             = np.sort(np.array(params['central_right_idx']) - 1)
             self.exclude_chs     = np.sort(np.array(params['excluded_idx']) - 1)

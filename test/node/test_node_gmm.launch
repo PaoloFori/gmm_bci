@@ -2,7 +2,7 @@
 
     <!-- GMM -->
     <!-- arguments -->
-    <arg name="path_gmm_model" default='$(find gmm_cvsa)/cfg/test.yaml'/>
+    <arg name="path_gmm_model" default='$(find gmm_cvsa)/cfg/gmm_test.yaml'/>
     <arg name="samplerate" default='16'/>
 
     <!-- node -->

@@ -162,11 +162,11 @@ c_l_ch = {'FC1', 'C3', 'CP1', 'FC3', 'C1', 'CP3'};
 c_r_ch = {'FC2', 'C4', 'CP2', 'FC4', 'C2', 'CP4'};
 excl_ch = {'FP1', 'FP2', 'EOG'};
 
-[~, o_l] = ismember(o_l_labels, channels_label);
-[~, o_r] = ismember(o_r_labels, channels_label);
-[~, c_l] = ismember(c_l_labels, channels_label);
-[~, c_r] = ismember(c_r_labels, channels_label);
-[~, excl_chs] = ismember(excl_labels, channels_label);
+[~, o_l] = ismember(o_l_ch, channels_label);
+[~, o_r] = ismember(o_r_ch, channels_label);
+[~, c_l] = ismember(c_l_ch, channels_label);
+[~, c_r] = ismember(c_r_ch, channels_label);
+[~, excl_chs] = ismember(excl_ch, channels_label);
 
 type = 'cvsa';
 
@@ -236,7 +236,7 @@ disp('centroids: ')
 disp(gmm_model.mu)
 
 %% save the gmm
-save_gmm(gmm_model, mu_features, sigma_features, filenames, save_path_gmm, o_l, o_r, frontal, c_l, c_r, excl_chs, channels_label, bands(choosen_band), classes_icnic, threshold_gmm_ic, type)
+save_gmm(gmm_model, mu_features, sigma_features, filenames, save_path_gmm, o_l, o_r, c_l, c_r, excl_chs, channels_label, bands(choosen_band), classes_icnic, threshold_gmm_ic, type)
 
 %% extract and save data for the QDA
 data = squeeze(trial_data(minDurCue+minDurFix+1:end,choosen_band,:,:)); % take just the 8-14 band
@@ -260,7 +260,7 @@ disp(['QDA model saved in ', save_path_qda_dataset]);
 
 %% ----------- FUNCTIONS --------
 % save gmm
-function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, o_l_idx, o_r_idx, frontal_idx, c_l_idx, c_r_idx, excluded_chs, channels_labels, band, classes_icnic, threshold_gmm_ic, type)
+function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, o_l_idx, o_r_idx, c_l_idx, c_r_idx, excluded_chs, channels_labels, band, classes_icnic, threshold_gmm_ic, type)
     % --- Dati GMM model ---
     % gmm_model:       gmm model 
     % mu_features:     mean of the data
@@ -323,11 +323,6 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
     o_r_channels = join(o_r_channels, ", ");
     o_r_str = strjoin(arrayfun(@(x) sprintf('%d', x), o_r_idx, 'UniformOutput', false), ', ');
 
-    frontal_channels = string(channels_labels(frontal_idx));
-    frontal_channels = "'" + frontal_channels + "'";
-    frontal_channels = join(frontal_channels, ", ");
-    frontal_str = strjoin(arrayfun(@(x) sprintf('%d', x), frontal_idx, 'UniformOutput', false), ', ');
-
     c_l_channels = string(channels_labels(c_l_idx));
     c_l_channels = "'" + c_l_channels + "'";
     c_l_channels = join(c_l_channels, ", ");
@@ -353,8 +348,6 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
                      '    occipital_left: [%s]\n' ...
                      '    occipital_right_idx: [%s]\n' ...
                      '    occipital_right: [%s]\n' ...
-                     '    frontal_idx: [%s]\n' ...
-                     '    frontal: [%s]\n' ...
                      '    central_left_idx: [%s]\n' ...
                      '    central_left: [%s]\n' ...
                      '    central_right_idx: [%s]\n' ...
@@ -378,8 +371,6 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
                      o_l_channels, ...
                      o_r_str, ...
                      o_r_channels, ...
-                     frontal_str, ...
-                     frontal_channels, ...
                      c_l_str, ...
                      c_l_channels, ...
                      c_r_str, ...

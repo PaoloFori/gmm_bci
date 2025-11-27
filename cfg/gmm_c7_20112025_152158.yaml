@@ -24,6 +24,7 @@ c7.20251120.151755.calibration.cvsa_lbrb.gdf"
   model_params:
     classes: [1, 0] # 0=NIC, 1=IC
     K: 2
+    type: 'cvsa'
     weights: [0.56549087, 0.43450913]
     means: 
     - [0.49423877, 0.45426707, 0.30662606]
