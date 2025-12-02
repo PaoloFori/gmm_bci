@@ -156,10 +156,15 @@ artifacts_data = tmp_art;
 % define regions
 nsparsity = 3;
 sparsity = nan(min_trial_data, nbands, ntrial, nsparsity); % sample x band x trial x sparsity
-o_l_ch = {'P3', 'O1', 'P5', 'P1', 'PO5', 'PO3', 'PO7'};
-o_r_ch = {'P4', 'O2', 'P2', 'P6', 'PO4', 'PO6', 'PO8'};
-c_l_ch = {'FC1', 'C3', 'CP1', 'FC3', 'C1', 'CP3'};
-c_r_ch = {'FC2', 'C4', 'CP2', 'FC4', 'C2', 'CP4'};
+% o_l_ch = {'P3', 'O1', 'P5', 'P1', 'PO5', 'PO3', 'PO7'};
+% o_r_ch = {'P4', 'O2', 'P2', 'P6', 'PO4', 'PO6', 'PO8'};
+% c_l_ch = {'FC1', 'C3', 'CP1', 'FC3', 'C1', 'CP3'};
+% c_r_ch = {'FC2', 'C4', 'CP2', 'FC4', 'C2', 'CP4'};
+
+o_l_ch = {'O1', 'PO5', 'PO3', 'PO7'};
+o_r_ch = {'O2', 'PO4', 'PO6', 'PO8'};
+c_l_ch = {'C3', 'CP1', 'C1', 'CP3'};
+c_r_ch = {'C4', 'CP2', 'C2', 'CP4'};
 excl_ch = {'FP1', 'FP2', 'EOG'};
 
 [~, o_l] = ismember(o_l_ch, channels_label);
@@ -179,14 +184,13 @@ for c = 1:ntrial
         for idx_band = 1:nbands
             tmp = squeeze(c_sample(idx_band,:)); % 1 x channels
 
-            [sparsity(sample, idx_band, c,:), ~] = compute_features_icnic(tmp, type, o_l, o_r, c_l, c_r, excl_chs);
+            [sparsity(sample, idx_band, c,:), ~] = compute_features_icnic(tmp, type, o_l, o_r, c_l, c_r, excl_chs, nsparsity);
         end
     end
 end
 
 %% ----------------- gmm -----------------
 % update to work with subbands -> tesista
-K = 2;
 choosen_band = 1;
 
 sparsity_cf = squeeze(sparsity(minDurFix+minDurCue+1:end, choosen_band,:,:));
@@ -207,8 +211,25 @@ sparsity_cf = reshape(data_standardized_2D, size(data_3D, 1), ntrial, size(data_
 
 disp('Esecuzione di GMM sui dati di training globali...');
 options = statset('MaxIter', 1000, 'Display', 'off');
+for k = K_range
+    try
+        % RegularizationValue = 1e-5 evita che le gaussiane collassino su un punto
+        gm_temp = fitgmdist(train_data_2D_noArtif, k, ...
+                            'Options', options, ...
+                            'Replicates', 150); 
+        
+        if gm_temp.BIC < min_bic
+            min_bic = gm_temp.BIC;
+            best_gmm = gm_temp;
+        end
+    catch
+        continue;
+    end
+end
 
-gmm_model = fitgmdist(data_2D_noArtif, K, 'Options', options, 'Replicates', 50);
+gmm_model = best_gmm;
+K = gmm_model.NumComponents;
+disp(['GMM ottimizzato: K = ' num2str(K) ' (BIC = ' num2str(min_bic) ')']);
 
 [~, sort_order] = sort(gmm_model.mu(:, 1), 'descend');
 idx_ic = sort_order(1);  % Index cluster IC
@@ -253,7 +274,34 @@ for idx_trial =  1:ntrial
         end
     end
 end
-occipital = {'P3', 'PZ', 'P4', 'POZ', 'O1', 'O2', 'P5', 'P1', 'P2', 'P6', 'PO5', 'PO3', 'PO4', 'PO6', 'PO7', 'PO8', 'OZ'}; [~, ch_occipital] = ismember(occipital, channels_label);
+
+
+%% fisher score
+occipital = {'P3', 'PZ', 'P4', 'POZ', 'O1', 'O2', 'P5', 'P1', 'P2', 'P6', 'PO5', 'PO3', 'PO4', 'PO6', 'PO7', 'PO8', 'OZ'}; 
+[~, ch_occipital] = ismember(occipital, channels_label);
+noccipital = size(ch_occipital, 2);
+
+fisher_IC = nan(1, noccipital);
+
+for idx_ch_occipital=1:noccipital
+    idx_ch = ch_occipital(idx_ch_occipital);
+    % IC
+    mu1 = mean(X(y == classes(1),idx_ch));
+    sigma1 = std(X(y == classes(1),idx_ch));
+    mu2 = mean(X(y == classes(2),idx_ch));
+    sigma2 = std(X(y == classes(2),idx_ch));
+    fisher_IC(idx_ch_occipital) = abs(mu1 - mu2)^2 / (sigma1^2 + sigma2^2);
+end
+
+figure();
+imagesc(fisher_IC')
+title('gmm ic and classical fisher score')
+colorbar;
+yticks(1:noccipital); yticklabels(occipital)
+xticks(1:4); xticklabels('IC')
+
+%% save data for qda
+occipital =  {'PO4', 'O2', 'PO8', 'PO6', 'O1', 'PO3', 'PO7', 'PO5'}; [~, ch_occipital] = ismember(occipital, channels_label);
 bands = bands(choosen_band);
 save(save_path_qda_dataset, 'X', 'y', 'gmm_file', 'classes', 'ch_occipital', 'occipital', 'filenames', 'bands')
 disp(['QDA model saved in ', save_path_qda_dataset]);
@@ -343,7 +391,6 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
                      '  name: "gmm_model"\n' ...
                      '  filenames: "%s"\n'...
                      '  params:\n' ...
-                     '    nfeatures: %d\n' ...
                      '    occipital_left_idx: [%s]\n' ...
                      '    occipital_left: [%s]\n' ...
                      '    occipital_right_idx: [%s]\n' ...
@@ -359,6 +406,7 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
                      '    band: \n%s\n' ...
                      '    threshold_gmm_ic: %d\n' ...
                      '  model_params:\n' ...
+                     '    nfeatures: %d\n' ...
                      '    type: "%s"\n' ...
                      '    classes: [%s] # 0=NIC, 1=IC\n', ...
                      '    K: %d\n' ...
@@ -366,7 +414,6 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
                      '    means: \n%s\n' ...
                      '    covariances: \n%s\n'], ...
                      filenamesStr, ...
-                     nfeatures, ...
                      o_l_str, ...
                      o_l_channels, ...
                      o_r_str, ...
@@ -381,6 +428,7 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
                      sigmaStr, ...
                      bands_str, ...
                      threshold_gmm_ic, ...
+                     nfeatures, ...
                      type, ...
                      classes_icnic_str, ...
                      K, ...

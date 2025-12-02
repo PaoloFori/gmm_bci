@@ -49,18 +49,18 @@ class GMMClassifier:
             self.c_l             = np.sort(np.array(params['central_left_idx']) - 1)
             self.c_r             = np.sort(np.array(params['central_right_idx']) - 1)
             self.exclude_chs     = np.sort(np.array(params['excluded_idx']) - 1)
-            self.nfeatures       = int(params['nfeatures'])
             self.bands_features  = np.array(params['band'])
 
             # Load parameters for the classifier
             self.K = int(model_params['K'])
             self.model = GaussianMixture(n_components=self.K, covariance_type='full')
-            self.model.means_ = np.array(model_params['means'])
-            self.model.weights_ = np.array(model_params['weights'])
+            self.model.nfeatures       = int(params['nfeatures'])
+            self.model.means_          = np.array(model_params['means'])
+            self.model.weights_        = np.array(model_params['weights'])
             covariances = np.array(model_params['covariances'])
-            self.model.covariances_ = covariances
-            self.classes = np.array(model_params['classes'])
-            self.type = model_params['type']
+            self.model.covariances_    = covariances
+            self.classes               = np.array(model_params['classes'])
+            self.type                  = model_params['type']
 
             self.model.precisions_cholesky_ = np.array(
                 [np.linalg.cholesky(np.linalg.inv(cov)) for cov in covariances]
@@ -121,10 +121,6 @@ class GMMClassifier:
                 gi = 0
 
             sparsity[idx_sparsity] = gi # GI
-            idx_sparsity += 1
-
-            # --- 3. Feature GB (Global Brain Activity) ---
-            sparsity[idx_sparsity] = global_mean # GB
             idx_sparsity += 1
         
         return sparsity
