@@ -54,7 +54,7 @@ class GMMClassifier:
             # Load parameters for the classifier
             self.K = int(model_params['K'])
             self.model = GaussianMixture(n_components=self.K, covariance_type='full')
-            self.model.nfeatures       = int(params['nfeatures'])
+            self.nfeatures             = int(model_params['nfeatures'])
             self.model.means_          = np.array(model_params['means'])
             self.model.weights_        = np.array(model_params['weights'])
             covariances = np.array(model_params['covariances'])

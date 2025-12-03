@@ -18,6 +18,8 @@ for idx_band = 1:nbands
     artifacts{idx_band} = [];
 end
 classes = [730 731];      
+cf_event = 781;
+fix_event = 786;
 nchannels = 39;
 nclasses = length(classes);
 filterOrder = 4;
