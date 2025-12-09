@@ -45,6 +45,9 @@ for idx_file= 1: nFiles
     channels_label = header.Label;
     sampleRate = header.SampleRate;
 
+    excl_ch = {'FP1', 'FP2', 'EOG'};
+    [~, excl_chs] = ismember(excl_ch, channels_label);
+
 
     disp('   [proc] power band');
     for idx_band = 1:nbands
@@ -55,13 +58,13 @@ for idx_file= 1: nFiles
         chunkSize = 32;
         eog.filterOrder = 4;
         eog.band = [1 7];
-        eog.label = {'FP1', 'FP2', 'EOG'};
-        eog.h_threshold = 85;
-        eog.v_threshold = 85;
+        eog.label = excl_ch;
+        eog.h_threshold = 70;
+        eog.v_threshold = 100;
         muscle.filterOrder = 4;
         muscle.freq = 1; % remove antneuro problems
-        muscle.threshold = 170;
-        [signal_processed, header_processed] = processing_onlineROS_hilbert(c_signal, header, nchannels, bufferSize, filterOrder, band, chunkSize);
+        muscle.threshold = 120;
+        [signal_processed, header_processed] = processing_onlineROS_hilbert(c_signal, header, nchannels, bufferSize, filterOrder, band, chunkSize, excl_chs);
         artifact = artifact_rejection(c_signal, header, nchannels, bufferSize, chunkSize, eog, muscle);
 
         if all(subject == 'h8')
@@ -163,13 +166,11 @@ o_l_ch = {'O1', 'PO5', 'PO3', 'PO7'};
 o_r_ch = {'O2', 'PO4', 'PO6', 'PO8'};
 c_l_ch = {'C3', 'CP1', 'C1', 'CP3'};
 c_r_ch = {'C4', 'CP2', 'C2', 'CP4'};
-excl_ch = {'FP1', 'FP2', 'EOG'};
 
 [~, o_l] = ismember(o_l_ch, channels_label);
 [~, o_r] = ismember(o_r_ch, channels_label);
 [~, c_l] = ismember(c_l_ch, channels_label);
 [~, c_r] = ismember(c_r_ch, channels_label);
-[~, excl_chs] = ismember(excl_ch, channels_label);
 
 type = 'cvsa';
 
@@ -182,7 +183,7 @@ for c = 1:ntrial
         for idx_band = 1:nbands
             tmp = squeeze(c_sample(idx_band,:)); % 1 x channels
 
-            [sparsity(sample, idx_band, c,:), ~] = compute_features_icnic(tmp, type, o_l, o_r, c_l, c_r, excl_chs, nsparsity);
+            [sparsity(sample, idx_band, c,:), ~] = compute_features_icnic(tmp, type, o_l, o_r, c_l, c_r, nsparsity);
         end
     end
 end
@@ -256,6 +257,51 @@ fprintf('Mappatura: Cluster GMM %d -> "ic", Cluster GMM %d -> "nic"\n', idx_ic, 
 % plot the C
 disp('centroids: ')
 disp(gmm_model.mu)
+
+%% --- VISUALIZZAZIONE GMM ---
+figure('Color', 'w'); % Crea una figura con sfondo bianco
+hold on;
+scatter(data_2D_noArtif(:,1), data_2D_noArtif(:,2), 15, ...
+        'MarkerFaceColor', [0.2 0.5 0.9], ...
+        'MarkerEdgeColor', 'none', ...
+        'MarkerFaceAlpha', 0.4);
+
+x_min = min(data_2D_noArtif(:,1)) - 1; x_max = max(data_2D_noArtif(:,1)) + 1;
+y_min = min(data_2D_noArtif(:,2)) - 1; y_max = max(data_2D_noArtif(:,2)) + 1;
+step = 0.05; 
+[x1Grid, x2Grid] = meshgrid(x_min:step:x_max, y_min:step:y_max);
+XGrid = [x1Grid(:), x2Grid(:)];
+
+prob_GMM = pdf(gmm_model, XGrid);
+prob_GMM = reshape(prob_GMM, size(x1Grid));
+[C, h] = contour(x1Grid, x2Grid, prob_GMM, 10, 'LineWidth', 2, 'LineColor', [0.8 0.2 0.2]);
+plot(gmm_model.mu(:,1), gmm_model.mu(:,2), 'k+', 'MarkerSize', 15, 'LineWidth', 3);
+
+xlabel('Lateralization Index (Z-score)', 'FontSize', 12, 'FontWeight', 'bold');
+ylabel('Gini Index (Z-score)', 'FontSize', 12, 'FontWeight', 'bold');
+title('GMM Fit: Cluster IC vs NIC', 'FontSize', 14);
+legend({'Dati Reali', 'Ellissi GMM', 'Centroidi'}, 'Location', 'best');
+grid on;
+axis tight;
+hold off;
+
+% 1. Ottieni le etichette "Hard" dal GMM (assegna ogni punto al cluster più probabile)
+cluster_idx = cluster(gmm_model, data_2D_noArtif);
+
+% 2. Calcola la Silhouette
+figure;
+[s, h] = silhouette(data_2D_noArtif, cluster_idx);
+mean_sil = mean(s);
+
+disp(['Silhouette Score Medio: ' num2str(mean_sil)]);
+% Salva il grafico per il paper
+title(['Silhouette Plot (Score: ' num2str(mean_sil, '%.2f') ')']);
+
+eva_ch = evalclusters(data_2D_noArtif, cluster_idx, 'CalinskiHarabasz');
+disp(['Calinski-Harabasz Index: ' num2str(eva_ch.CriterionValues)]);
+
+eva_db = evalclusters(data_2D_noArtif, cluster_idx, 'DaviesBouldin');
+disp(['Davies-Bouldin Index: ' num2str(eva_db.CriterionValues)]);
 
 %% save the gmm
 save_gmm(gmm_model, mu_features, sigma_features, filenames, save_path_gmm, o_l, o_r, c_l, c_r, excl_chs, channels_label, bands(choosen_band), classes_icnic, threshold_gmm_ic, type)

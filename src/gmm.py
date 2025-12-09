@@ -66,10 +66,10 @@ class GMMClassifier:
                 [np.linalg.cholesky(np.linalg.inv(cov)) for cov in covariances]
                 )
         except KeyError as e:
-            rospy.logwarn(f"[{self.gmm_name}] YAML file error parameter: {e}")
+            rospy.logwarn(f"[GMM] YAML file error parameter: {e}")
             return False
         except Exception as e:
-            rospy.logwarn(f"[{self.gmm_name}]General error in the GMM model loading: {e}")
+            rospy.logwarn(f"[GMM] General error in the GMM model loading: {e}")
             return False
             
         return True
@@ -93,19 +93,15 @@ class GMMClassifier:
 
             denominator = P_right_window + P_left_window + np.finfo(float).eps
             LAP_history = (P_right_window - P_left_window) / denominator
-            sparsity[idx_sparsity] = np.abs(LAP_history) # LI
+            sparsity[idx_sparsity] = np.sqrt(np.abs(LAP_history)) # LI
             idx_sparsity += 1
 
             # --- 2. Feature GI (Gini * Occipital Power) ---
-            all_chs = np.arange(len(c_signal))
-            non_eog_chs = np.setdiff1d(all_chs, self.exclude_chs)
-            global_mean = np.mean(c_signal[non_eog_chs])
-            current_signal_normalized = c_signal - global_mean
             mean_roi = np.array([
-                np.mean(current_signal_normalized[self.c_l]),
-                np.mean(current_signal_normalized[self.c_r]),
-                np.mean(current_signal_normalized[self.o_l]),
-                np.mean(current_signal_normalized[self.o_r])
+                np.mean(c_signal[self.c_l]),
+                np.mean(c_signal[self.c_r]),
+                np.mean(c_signal[self.o_l]),
+                np.mean(c_signal[self.o_r])
             ])
             mean_roi = np.abs(mean_roi)
             mean_roi_ordered = np.sort(mean_roi)
