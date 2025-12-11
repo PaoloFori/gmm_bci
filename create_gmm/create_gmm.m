@@ -59,11 +59,11 @@ for idx_file= 1: nFiles
         eog.filterOrder = 4;
         eog.band = [1 7];
         eog.label = excl_ch;
-        eog.h_threshold = 70;
-        eog.v_threshold = 100;
+        eog.h_threshold = 60;
+        eog.v_threshold = 60;
         muscle.filterOrder = 4;
         muscle.freq = 1; % remove antneuro problems
-        muscle.threshold = 120;
+        muscle.threshold = 100;
         [signal_processed, header_processed] = processing_onlineROS_hilbert(c_signal, header, nchannels, bufferSize, filterOrder, band, chunkSize, excl_chs);
         artifact = artifact_rejection(c_signal, header, nchannels, bufferSize, chunkSize, eog, muscle);
 
@@ -274,7 +274,7 @@ XGrid = [x1Grid(:), x2Grid(:)];
 
 prob_GMM = pdf(gmm_model, XGrid);
 prob_GMM = reshape(prob_GMM, size(x1Grid));
-[C, h] = contour(x1Grid, x2Grid, prob_GMM, 10, 'LineWidth', 2, 'LineColor', [0.8 0.2 0.2]);
+[C, ~] = contour(x1Grid, x2Grid, prob_GMM, 10, 'LineWidth', 2, 'LineColor', [0.8 0.2 0.2]);
 plot(gmm_model.mu(:,1), gmm_model.mu(:,2), 'k+', 'MarkerSize', 15, 'LineWidth', 3);
 
 xlabel('Lateralization Index (Z-score)', 'FontSize', 12, 'FontWeight', 'bold');
@@ -290,7 +290,7 @@ cluster_idx = cluster(gmm_model, data_2D_noArtif);
 
 % 2. Calcola la Silhouette
 figure;
-[s, h] = silhouette(data_2D_noArtif, cluster_idx);
+[s, ~] = silhouette(data_2D_noArtif, cluster_idx);
 mean_sil = mean(s);
 
 disp(['Silhouette Score Medio: ' num2str(mean_sil)]);
@@ -309,21 +309,26 @@ save_gmm(gmm_model, mu_features, sigma_features, filenames, save_path_gmm, o_l, 
 %% extract and save data for the QDA
 data = squeeze(trial_data(minDurCue+minDurFix+1:end,choosen_band,:,:)); % take just the 8-14 band
 nsamples = size(data,1);
-X = [];
-y = [];
+X = []; X_all = [];
+y = []; y_all = [];
+trials = [];
 for idx_trial =  1:ntrial
     for idx_sample = 1:nsamples
         if artifacts_cf(idx_sample,idx_trial) == 0 % no artifact
+            X_all = [X_all; data(idx_sample,:,idx_trial)];
+            y_all = [y_all; trial_typ(idx_trial)];
             if cluster_labels(idx_sample, idx_trial) >= threshold_gmm_ic % IC state
                 X = [X; data(idx_sample,:,idx_trial)];
                 y = [y; trial_typ(idx_trial)];
+                trials = [trials; idx_trial];
             end
         end
     end
 end
 
 
-%% fisher score
+%% Check the data used for the QDA
+% fisher score
 occipital = {'P3', 'PZ', 'P4', 'POZ', 'O1', 'O2', 'P5', 'P1', 'P2', 'P6', 'PO5', 'PO3', 'PO4', 'PO6', 'PO7', 'PO8', 'OZ'}; 
 [~, ch_occipital] = ismember(occipital, channels_label);
 noccipital = size(ch_occipital, 2);
@@ -347,10 +352,15 @@ colorbar;
 yticks(1:noccipital); yticklabels(occipital)
 xticks(1:4); xticklabels('IC')
 
+% R^2
+[r2_values] = calc_r2_from_data(X, y, 'Plot', true, 'ChanLabels', channels_label, 'title_data', 'QDA data');
+[r2_values] = calc_r2_from_data(X_all, y_all, 'Plot', true, 'ChanLabels', channels_label, 'title_data', 'all data');
+
+
 %% save data for qda
-occipital =  {'PO4', 'O2', 'PO8', 'PO6', 'O1', 'PO3', 'PO7', 'PO5'}; [~, ch_occipital] = ismember(occipital, channels_label);
+occipital =  {'P5', 'PO7', 'O1', 'PO3', 'P6', 'PO8', 'O2', 'PO4'}; [~, ch_occipital] = ismember(occipital, channels_label);
 bands = bands(choosen_band);
-save(save_path_qda_dataset, 'X', 'y', 'gmm_file', 'classes', 'ch_occipital', 'occipital', 'filenames', 'bands')
+save(save_path_qda_dataset, 'X', 'y', 'trials', 'gmm_file', 'classes', 'ch_occipital', 'occipital', 'filenames', 'bands')
 disp(['QDA model saved in ', save_path_qda_dataset]);
 
 %% ----------- FUNCTIONS --------
