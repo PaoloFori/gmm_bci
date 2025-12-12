@@ -4,7 +4,7 @@ addpath('/home/paolo/cvsa/ic_cvsa_ws/src/analysis_cvsa/equal_ros')
 
 %% Initialization
 DATAPAH = '/home/paolo/cvsa/ic_cvsa_ws/src/';
-bands = [{[8 14]}];
+bands = [{[8 11]}];
 bands_str = cellfun(@(x) sprintf('%d-%d', x(1), x(2)), bands, 'UniformOutput', false);
 nbands = length(bands);
 signals = cell(1, nbands);
@@ -38,9 +38,9 @@ save_path_qda_dataset = [DATAPAH 'qda_cvsa/create_qda/datasets/gmm/data_' subjec
 %% concatenate the files
 nFiles = length(filenames);
 for idx_file= 1: nFiles
-    fullpath_file_shift = fullfile(pathname, filenames{idx_file});
+    fullpath_file = fullfile(pathname, filenames{idx_file});
     disp(['file (' num2str(idx_file) '/' num2str(nFiles)  '): ', filenames{idx_file}]);
-    [c_signal,header] = sload(fullpath_file_shift);
+    [c_signal,header] = sload(fullpath_file);
     c_signal = c_signal(:,1:nchannels);
     channels_label = header.Label;
     sampleRate = header.SampleRate;
@@ -66,10 +66,6 @@ for idx_file= 1: nFiles
         muscle.threshold = 100;
         [signal_processed, header_processed] = processing_onlineROS_hilbert(c_signal, header, nchannels, bufferSize, filterOrder, band, chunkSize, excl_chs);
         artifact = artifact_rejection(c_signal, header, nchannels, bufferSize, chunkSize, eog, muscle);
-
-        if all(subject == 'h8')
-            signal_processed(:,23) = 0;
-        end
 
         c_header = headers{1, idx_band};
         c_header.sampleRate = header_processed.SampleRate/chunkSize;
