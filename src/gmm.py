@@ -93,7 +93,7 @@ class GMMClassifier:
 
             denominator = P_right_window + P_left_window + np.finfo(float).eps
             LAP_history = (P_right_window - P_left_window) / denominator
-            sparsity[idx_sparsity] = np.sqrt(np.abs(LAP_history)) # LI
+            sparsity[idx_sparsity] = np.abs(LAP_history) # LI
             idx_sparsity += 1
 
             # --- 2. Feature GI (Gini * Occipital Power) ---
