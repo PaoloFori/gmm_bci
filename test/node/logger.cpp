@@ -1,7 +1,7 @@
 #include <ros/ros.h>
 #include <eigen3/Eigen/Dense>
 #include <rosneuro_msgs/NeuroOutput.h> 
-#include "gmm_cvsa/utils.hpp" 
+#include "gmm_bci/utils.hpp" 
 #include <string>
 #include <vector>
 

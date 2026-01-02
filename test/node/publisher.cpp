@@ -3,8 +3,8 @@
 #include <eigen3/Eigen/Dense> 
 #include <vector>
 #include <string>
-#include <processing_cvsa/eeg_power.h> 
-#include "gmm_cvsa/utils.hpp" 
+#include <processing_bci/eeg_power.h> 
+#include "gmm_bci/utils.hpp" 
 
 int main(int argc, char** argv) {
     ros::init(argc, argv, "test_publisher_csv");
@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
     int total_samples = full_data.rows();
     ROS_INFO("Loaded data: %d samples x %d channels.", total_samples, n_channels);
 
-    ros::Publisher pub = nh.advertise<processing_cvsa::eeg_power>(topic, 10);
+    ros::Publisher pub = nh.advertise<processing_bci::eeg_power>(topic, 10);
     ros::Rate loop_rate(sample_rate);
 
     ROS_INFO("Waiting for a  subscriber on topic '%s'...", topic.c_str());
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
 
         Eigen::MatrixXd c_data = full_data.block(current_sample, 0, 1, n_channels);
 
-        processing_cvsa::eeg_power msg;
+        processing_bci::eeg_power msg;
         msg.header.stamp = ros::Time::now();
         msg.nchannels = n_channels;
         msg.nbands = 1;
