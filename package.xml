@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>gmm_cvsa</name>
+  <name>gmm_bci</name>
   <version>0.0.0</version>
-  <description>The gmm_cvsa package</description>
+  <description>The gmm_bci package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -19,7 +19,7 @@
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/gmm_cvsa</url> -->
+  <!-- <url type="website">http://wiki.ros.org/gmm_bci</url> -->
 
 
   <!-- Author tags are optional, multiple are allowed, one per tag -->
@@ -59,7 +59,7 @@
   <exec_depend>rospy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
 
-  <depend>processing_cvsa</depend>
+  <depend>processing_bci</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
