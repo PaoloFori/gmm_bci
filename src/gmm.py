@@ -3,27 +3,27 @@
 import yaml
 import rospy
 import numpy as np
-from processing_cvsa.msg import eeg_power
+from processing_bci.msg import eeg_power
 from rosneuro_msgs.msg import NeuroOutput
 from sklearn.mixture import GaussianMixture
 
 class GMMClassifier:
     def __init__(self):
         rospy.init_node('gmm_classifier', anonymous=True)
+        self.gmm_name = "gmm_model"
         
         try:
             self.path_decoder = rospy.get_param('~path_gmm_model')
         except KeyError as e:
-            rospy.logfatal(f"[GMM] Parametro mancante: {e}. Assicurati di lanciarlo con un launch file.")
+            rospy.logfatal(f"[{self.gmm_name}] Parametro mancante: {e}. Assicurati di lanciarlo con un launch file.")
             return
         conf = self.configure()
         
         if not conf:
-            rospy.logfatal("[GMM] Erorr in the GMM configuration.")
+            rospy.logfatal(f"[{self.gmm_name}] Erorr in the GMM configuration.")
             return
         else:
-            rospy.loginfo("[GMM] GMM configurated correctly.")
-        
+            rospy.loginfo(f"[{self.gmm_name}] GMM configurated correctly.")
         
         rospy.Subscriber('/cvsa/eeg_power', eeg_power, self.callback)
         self.pub = rospy.Publisher('/cvsa/neuroprediction/icnic', NeuroOutput, queue_size=10)
@@ -31,7 +31,7 @@ class GMMClassifier:
         rospy.spin()
         
     def configure(self):
-        rospy.loginfo(f"[GMM] Loading GMM from: {self.path_decoder}")
+        rospy.loginfo(f"[{self.gmm_name}] Loading GMM from: {self.path_decoder}")
         with open(self.path_decoder, 'r') as file:
             params = yaml.safe_load(file)['GmmModelCfg']['params']
             
@@ -66,10 +66,10 @@ class GMMClassifier:
                 [np.linalg.cholesky(np.linalg.inv(cov)) for cov in covariances]
                 )
         except KeyError as e:
-            rospy.logwarn(f"[GMM] YAML file error parameter: {e}")
+            rospy.logwarn(f"[{self.gmm_name}] YAML file error parameter: {e}")
             return False
         except Exception as e:
-            rospy.logwarn(f"[GMM] General error in the GMM model loading: {e}")
+            rospy.logwarn(f"[{self.gmm_name}] General error in the GMM model loading: {e}")
             return False
             
         return True
@@ -85,24 +85,34 @@ class GMMClassifier:
             if self.type == 'cvsa':
                 P_left_window = np.mean(c_signal[self.o_l])
                 P_right_window = np.mean(c_signal[self.o_r])
+                denominator = P_right_window + P_left_window + np.finfo(float).eps
+                LAP_history = (P_right_window - P_left_window) / denominator
+                
+                sparsity[idx_sparsity] = np.abs(LAP_history) # LI
+                idx_sparsity += 1
+                sparsity[idx_sparsity] = np.log(min(P_right_window, P_left_window)) # Log of minimum power
+                idx_sparsity += 1
+
             elif self.type == 'mi':
                 P_left_window = np.mean(c_signal[self.c_l])
                 P_right_window = np.mean(c_signal[self.c_r])
+                sparsity[idx_sparsity] = np.log(min(P_right_window, P_left_window)) # Log of minimum power
+                idx_sparsity += 1
+                
             else:
                 return
-
-            denominator = P_right_window + P_left_window + np.finfo(float).eps
-            LAP_history = (P_right_window - P_left_window) / denominator
-            sparsity[idx_sparsity] = np.abs(LAP_history) # LI
-            idx_sparsity += 1
+            
 
             # --- 2. Feature GI (Gini * Occipital Power) ---
-            mean_roi = np.array([
-                np.mean(c_signal[self.c_l]),
-                np.mean(c_signal[self.c_r]),
-                np.mean(c_signal[self.o_l]),
-                np.mean(c_signal[self.o_r])
-            ])
+            if len(self.c_l) == 0 or len(self.c_r) == 0 or len(self.o_l) == 0 or len(self.o_r) == 0:
+                mean_roi = signal
+            else:
+                mean_roi = np.array([
+                    np.mean(c_signal[self.c_l]),
+                    np.mean(c_signal[self.c_r]),
+                    np.mean(c_signal[self.o_l]),
+                    np.mean(c_signal[self.o_r])
+                ])
             mean_roi = np.abs(mean_roi)
             mean_roi_ordered = np.sort(mean_roi)
             n = len(mean_roi_ordered)
@@ -147,8 +157,19 @@ class GMMClassifier:
                 if np.array_equal(c_band_features, filter_band):
                     tmp.append(reshaped_data[:, j])
                     break 
- 
-        dfet = self.compute_sparsity_features(np.array(tmp), nbands)
+                
+        if len(tmp) == 0:
+            rospy.error(f"[{self.gmm_name}] No matching bands found between features and incoming data.")
+            return
+        
+        if len(self.bands_features) > 1:
+            dfet = []
+            for i in range(len(self.bands_features)):
+                c_features = self.compute_sparsity_features(np.array(tmp[i]), nbands)
+                dfet.extend(c_features.tolist())
+            dfet = np.array(dfet)
+        else:
+            dfet = self.compute_sparsity_features(np.array(tmp), nbands)
         
         [soft_proba, hard_prob] = self.classify(dfet)
         

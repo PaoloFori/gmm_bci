@@ -1,10 +1,11 @@
 clear all; % close all;
 
-addpath('/home/paolo/cvsa/ic_cvsa_ws/src/analysis_cvsa/equal_ros')
+addpath('/home/paolo/cvsa/ic_cvsa_ws/src/analysis_bci/equal_ros')
+addpath('/home/paolo/cvsa/ic_cvsa_ws/src/analysis_bci/utils')
 
 %% Initialization
 DATAPAH = '/home/paolo/cvsa/ic_cvsa_ws/src/';
-bands = [{[8 11]}];
+bands = [{[8 14]}];
 bands_str = cellfun(@(x) sprintf('%d-%d', x(1), x(2)), bands, 'UniformOutput', false);
 nbands = length(bands);
 signals = cell(1, nbands);
@@ -31,9 +32,9 @@ if ischar(filenames)
 end
 subject = filenames{1}(1:2);
 time_str = datestr(now, 'ddmmyyyy_HHMMSS');
-gmm_file = ['gmm_' subject '_' time_str '.yaml'];
-save_path_gmm = [DATAPAH, 'gmm_cvsa/cfg/' gmm_file];
-save_path_qda_dataset = [DATAPAH 'qda_cvsa/create_qda/datasets/gmm/data_' subject '_' time_str '.mat'];
+gmm_file = ['gmm_' subject '_' time_str 'mi.yaml'];
+save_path_gmm = [DATAPAH, 'gmm_bci/cfg/' gmm_file];
+save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/data_' subject '_' time_str 'mi.mat'];
 
 %% concatenate the files
 nFiles = length(filenames);
@@ -64,7 +65,7 @@ for idx_file= 1: nFiles
         muscle.filterOrder = 4;
         muscle.freq = 1; % remove antneuro problems
         muscle.threshold = 100;
-        [signal_processed, header_processed] = processing_onlineROS_CSD_hilbert(c_signal, header, nchannels, bufferSize, filterOrder, band, chunkSize);
+        [signal_processed, header_processed] = processing_onlineROS_CAR_hilbert(c_signal, header, nchannels, bufferSize, filterOrder, band, chunkSize, excl_chs);
         artifact = artifact_rejection(c_signal, header, nchannels, bufferSize, chunkSize, eog, muscle);
 
         c_header = headers{1, idx_band};
@@ -151,7 +152,7 @@ artifacts_data = tmp_art;
 
 %% compute sparsity
 % define regions
-nsparsity = 2;
+nsparsity = 3;
 sparsity = nan(min_trial_data, nbands, ntrial, nsparsity); % sample x band x trial x sparsity
 % o_l_ch = {'P3', 'O1', 'P5', 'P1', 'PO5', 'PO3', 'PO7'};
 % o_r_ch = {'P4', 'O2', 'P2', 'P6', 'PO4', 'PO6', 'PO8'};
@@ -258,42 +259,58 @@ disp('centroids: ')
 disp(gmm_model.mu)
 
 %% --- VISUALIZZAZIONE GMM ---
-figure('Color', 'w'); % Crea una figura con sfondo bianco
-hold on;
-scatter(data_2D_noArtif(:,1), data_2D_noArtif(:,2), 15, ...
-        'MarkerFaceColor', [0.2 0.5 0.9], ...
-        'MarkerEdgeColor', 'none', ...
-        'MarkerFaceAlpha', 0.4);
-
-x_min = min(data_2D_noArtif(:,1)) - 1; x_max = max(data_2D_noArtif(:,1)) + 1;
-y_min = min(data_2D_noArtif(:,2)) - 1; y_max = max(data_2D_noArtif(:,2)) + 1;
-step = 0.05; 
-[x1Grid, x2Grid] = meshgrid(x_min:step:x_max, y_min:step:y_max);
-XGrid = [x1Grid(:), x2Grid(:)];
-
-prob_GMM = pdf(gmm_model, XGrid);
-prob_GMM = reshape(prob_GMM, size(x1Grid));
-[C, ~] = contour(x1Grid, x2Grid, prob_GMM, 10, 'LineWidth', 2, 'LineColor', [0.8 0.2 0.2]);
-plot(gmm_model.mu(:,1), gmm_model.mu(:,2), 'k+', 'MarkerSize', 15, 'LineWidth', 3);
-
-xlabel('Lateralization Index (Z-score)', 'FontSize', 12, 'FontWeight', 'bold');
-ylabel('Gini Index (Z-score)', 'FontSize', 12, 'FontWeight', 'bold');
-title('GMM Fit: Cluster IC vs NIC', 'FontSize', 14);
-legend({'Dati Reali', 'Ellissi GMM', 'Centroidi'}, 'Location', 'best');
-grid on;
-axis tight;
-hold off;
-
-% 1. Ottieni le etichette "Hard" dal GMM (assegna ogni punto al cluster più probabile)
 cluster_idx = cluster(gmm_model, data_2D_noArtif);
 
-% 2. Calcola la Silhouette
+colors = lines(K); 
+
+% --- Scatter Plot 3D Interattivo ---
+figure('Color', 'w', 'Name', 'GMM 3D Clustering'); 
+hold on; grid on; rotate3d on;
+
+view(3); % Imposta vista 3D standard
+for k = 1:K
+    idx_k = (cluster_idx == k);
+    scatter3(data_2D_noArtif(idx_k, 1), data_2D_noArtif(idx_k, 2), data_2D_noArtif(idx_k, 3), ...
+             20, colors(k,:), 'filled', 'MarkerFaceAlpha', 0.5);
+end
+
+% Plot dei Centroidi
+plot3(gmm_model.mu(:,1), gmm_model.mu(:,2), gmm_model.mu(:,3), ...
+      'k+', 'MarkerSize', 15, 'LineWidth', 3);
+
+xlabel('Feature 1 (Z-score)', 'FontSize', 12, 'FontWeight', 'bold');
+ylabel('Feature 2 (Z-score)', 'FontSize', 12, 'FontWeight', 'bold');
+zlabel('Feature 3 (Z-score)', 'FontSize', 12, 'FontWeight', 'bold');
+title(['GMM Fit 3D: K = ' num2str(K)], 'FontSize', 14);
+legend({'Cluster 1', 'Cluster 2', 'Centroidi'}, 'Location', 'best');
+hold off;
+
+% --- Matrice di proiezioni 2D (Plotmatrix) ---
+figure('Color', 'w', 'Name', 'GMM Feature Pairs');
+[H,AX,BigAx,P,PAx] = plotmatrix(data_2D_noArtif);
+
+% Colora i punti in base al cluster nella plotmatrix
+for i = 1:size(AX,1)
+    for j = 1:size(AX,2)
+        if i ~= j
+            cla(AX(i,j)); hold(AX(i,j), 'on');
+            for k = 1:K
+                idx_k = (cluster_idx == k);
+                plot(AX(i,j), data_2D_noArtif(idx_k, j), data_2D_noArtif(idx_k, i), ...
+                     '.', 'Color', colors(k,:), 'MarkerSize', 8);
+            end
+        end
+    end
+end
+title(BigAx, 'Proiezioni 2D delle Feature (Pairwise Plot)');
+
+% --- METRICS ---
+cluster_idx = cluster(gmm_model, data_2D_noArtif);
 figure;
 [s, ~] = silhouette(data_2D_noArtif, cluster_idx);
 mean_sil = mean(s);
 
 disp(['Silhouette Score Medio: ' num2str(mean_sil)]);
-% Salva il grafico per il paper
 title(['Silhouette Plot (Score: ' num2str(mean_sil, '%.2f') ')']);
 
 eva_ch = evalclusters(data_2D_noArtif, cluster_idx, 'CalinskiHarabasz');
@@ -361,6 +378,10 @@ occipital =  {'P5', 'PO7', 'O1', 'PO3', 'P6', 'PO8', 'O2', 'PO4'}; [~, ch_occipi
 bands = bands(choosen_band);
 save(save_path_qda_dataset, 'X', 'y', 'trials', 'gmm_file', 'classes', 'ch_occipital', 'occipital', 'filenames', 'bands')
 disp(['QDA model saved in ', save_path_qda_dataset]);
+
+
+
+
 
 %% ----------- FUNCTIONS --------
 % save gmm
@@ -461,7 +482,7 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
                      '    sigma: [%s]\n' ...
                      '    band: \n%s\n' ...
                      '    threshold_gmm_ic: %d\n' ...
-                     '    threshold_gmm_ic_soft %d\n' ...
+                     '    threshold_gmm_ic_discarded: %d\n' ...
                      '  model_params:\n' ...
                      '    nfeatures: %d\n' ...
                      '    type: "%s"\n' ...
@@ -485,7 +506,7 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
                      sigmaStr, ...
                      bands_str, ...
                      threshold_gmm_ic, ...
-                     0.5, ...
+                     0.4, ...
                      nfeatures, ...
                      type, ...
                      classes_icnic_str, ...
