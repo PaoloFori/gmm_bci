@@ -34,7 +34,7 @@ subject = filenames{1}(1:2);
 time_str = datestr(now, 'ddmmyyyy_HHMMSS');
 gmm_file = ['gmm_' subject '_' time_str '_cvsa.yaml'];
 save_path_gmm = [DATAPAH, 'gmm_bci/cfg/' gmm_file];
-save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/data_' subject '_' time_str 'cvsa.mat'];
+save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/data_' subject '_' time_str '_cvsa.mat'];
 
 %% concatenate the files
 nFiles = length(filenames);
@@ -234,8 +234,8 @@ K = gmm_model.NumComponents;
 disp(['GMM ottimizzato: K = ' num2str(K) ' (BIC = ' num2str(min_bic) ')']);
 
 [~, sort_order] = sort(gmm_model.mu(:, 1), 'descend');
-idx_ic = sort_order(1);  % Index cluster IC
 idx_nic = sort_order(2); 
+idx_ic = sort_order(1); % strong lateralization = IC
 classes_icnic = zeros(1,2);
 classes_icnic(idx_ic) = 1;
 
@@ -349,7 +349,7 @@ occipital = {'P3', 'PZ', 'P4', 'POZ', 'O1', 'O2', 'P5', 'P1', 'P2', 'P6', 'PO5',
 [~, ch_occipital] = ismember(occipital, channels_label);
 noccipital = size(ch_occipital, 2);
 
-fisher_IC = nan(1, noccipital);
+fisher = nan(2, noccipital);
 
 for idx_ch_occipital=1:noccipital
     idx_ch = ch_occipital(idx_ch_occipital);
@@ -358,19 +358,26 @@ for idx_ch_occipital=1:noccipital
     sigma1 = std(X(y == classes(1),idx_ch));
     mu2 = mean(X(y == classes(2),idx_ch));
     sigma2 = std(X(y == classes(2),idx_ch));
-    fisher_IC(idx_ch_occipital) = abs(mu1 - mu2)^2 / (sigma1^2 + sigma2^2);
+    fisher(1, idx_ch_occipital) = abs(mu1 - mu2)^2 / (sigma1^2 + sigma2^2);
+
+    % all
+    mu1 = mean(X_all(y_all == classes(1),idx_ch));
+    sigma1 = std(X_all(y_all == classes(1),idx_ch));
+    mu2 = mean(X_all(y_all == classes(2),idx_ch));
+    sigma2 = std(X_all(y_all == classes(2),idx_ch));
+    fisher(2, idx_ch_occipital) = abs(mu1 - mu2)^2 / (sigma1^2 + sigma2^2);
 end
 
 figure();
-imagesc(fisher_IC')
-title('gmm ic and classical fisher score')
+imagesc(fisher')
 colorbar;
 yticks(1:noccipital); yticklabels(occipital)
-xticks(1:4); xticklabels('IC')
+xticks(1:2); xticklabels({'IC', 'traditional'})
+sgtitle('gmm ic and classical fisher score')
 
 % R^2
-[r2_values] = calc_r2_from_data(X, y, 'Plot', true, 'ChanLabels', channels_label, 'title_data',  ['QDA data | size data: ' num2str(size(X,1))]);
-[r2_values] = calc_r2_from_data(X_all, y_all, 'Plot', true, 'ChanLabels', channels_label, 'title_data', ['all data | size data: ' num2str(size(X_all,1))]);
+calc_r2_from_data(X, y, 'Plot', true, 'ChanLabels', channels_label, 'title_data', ['QDA data | size data: ' num2str(size(X,1))]);
+calc_r2_from_data(X_all, y_all, 'Plot', true, 'ChanLabels', channels_label, 'title_data', ['all data | size data: ' num2str(size(X_all,1))]);
 
 
 %% save data for qda
