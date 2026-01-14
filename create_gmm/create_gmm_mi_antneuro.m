@@ -5,12 +5,11 @@ addpath('/home/paolo/cvsa/ic_cvsa_ws/src/analysis_bci/equal_ros')
 %% Initialization
 DATAPAH = '/home/paolo/cvsa/ic_cvsa_ws/src/';
 classes = [769 770];
-nchannels = 16;
+nchannels = 39;
 nclasses = length(classes);
 filterOrder = 4;
 avg = 1;
 threshold_gmm_ic = 0.7;
-channels_label = {'Fz', 'FC3', 'FC1', 'FCz', 'FC2', 'FC4', 'C3', 'C1', 'Cz', 'C2', 'C4', 'CP3', 'CP1', 'CP2', 'CP4', 'Pz'};
 
 
 %% Load file
@@ -53,6 +52,7 @@ for idx_file= 1: nFiles
     [c_signal,header] = sload(fullpath_file);
     c_signal = c_signal(:,1:nchannels);
     sampleRate = header.SampleRate;
+    channels_label = header.Label;
 
     excl_chs = [];
 
@@ -166,8 +166,8 @@ sparsity = nan(min_trial_data, ntrial, nsparsity*nbands); % sample x trial x spa
 % c_l_ch = {'FC1', 'C3', 'CP1', 'FC3', 'C1', 'CP3'};
 % c_r_ch = {'FC2', 'C4', 'CP2', 'FC4', 'C2', 'CP4'};
 
-o_l_ch = {};
-o_r_ch = {};
+o_l_ch = {'P3', 'O1', 'P5', 'P1', 'PO5', 'PO3', 'PO7'};
+o_r_ch = {'P4', 'O2', 'P2', 'P6', 'PO4', 'PO6', 'PO8'};
 c_l_ch = {'C3', 'CP1', 'C1', 'CP3'};
 c_r_ch = {'C4', 'CP2', 'C2', 'CP4'};
 

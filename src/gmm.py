@@ -116,7 +116,7 @@ class GMMClassifier:
         mean_roi_ordered = np.sort(mean_roi)
         n = len(mean_roi_ordered)
         total_sum = np.sum(mean_roi_ordered)
-        if total_sum > 0:
+        if total_sum > 0 and n > 0:
             sum_roi_p = 0
             for i in range(n): 
                 sum_roi_p += (n - i) * mean_roi_ordered[i]

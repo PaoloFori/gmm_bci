@@ -10,7 +10,7 @@ nclasses = length(classes);
 filterOrder = 4;
 avg = 1;
 threshold_gmm_ic = 0.7;
-channels_label = {'Fz', 'FC3', 'FC1', 'FCz', 'FC2', 'FC4', 'C3', 'C1', 'Cz', 'C2', 'C4', 'CP3', 'CP1', 'CP2', 'CP4', 'Pz'};
+channels_label = {'Fz', 'FC3', 'FC1', 'FCz', 'FC2', 'FC4', 'C3', 'C1', 'Cz', 'C2', 'C4', 'Fp1', 'CP1', 'CPz', 'CP2', 'Fp2'};
 
 
 %% Load file
@@ -29,8 +29,7 @@ nFiles = length(filenames);
 peaks = zeros(1, nFiles);
 for idx_file = 1:nFiles
     fullpath_file = fullfile(pathname, filenames{idx_file});
-    peaks(idx_file) = analyze_alpha_peak(fullpath_file, 'RestTrigger', 786, 'band', [8 14], ...
-        'target_regions', {'C1', 'C3', 'C2', 'C4'});
+    peaks(idx_file) = analyze_alpha_peak(fullpath_file, 'RestTrigger', 786, 'band', [8 14], 'target_regions', {'C1', 'C3', 'C2', 'C4'});
 end
 
 %% start processing data
@@ -60,14 +59,14 @@ for idx_file= 1: nFiles
     bufferSize = floor(avg*sampleRate);
     chunkSize = 32;
     eog.filterOrder = 4;
-    eog.band = [];
+    eog.band = {'FP1', 'FP2'};
     eog.label = excl_chs;
-    eog.h_threshold = 60;
-    eog.v_threshold = 60;
-    muscle.filterOrder = 4;
-    muscle.freq = 1; % remove antneuro problems
-    muscle.threshold = 100;
-    artifact = artifact_rejection(c_signal, header, nchannels, bufferSize, chunkSize, eog, muscle);
+    eog.h_threshold = 75;
+    eog.v_threshold = 75;
+    picks.filterOrder = 4;
+    picks.freq = 1; % remove antneuro problems
+    picks.threshold = 120;
+    artifact = artifact_rejection(c_signal, header, nchannels, bufferSize, chunkSize, eog, picks);
     artifacts = cat(1, artifacts, artifact(:,:));
 
     disp('   [proc] power band');
@@ -168,8 +167,8 @@ sparsity = nan(min_trial_data, ntrial, nsparsity*nbands); % sample x trial x spa
 
 o_l_ch = {};
 o_r_ch = {};
-c_l_ch = {'C3', 'CP1', 'C1', 'CP3'};
-c_r_ch = {'C4', 'CP2', 'C2', 'CP4'};
+c_l_ch = {'C3', 'CP1', 'C1'};
+c_r_ch = {'C4', 'CP2', 'C2'};
 
 [~, o_l] = ismember(o_l_ch, channels_label);
 [~, o_r] = ismember(o_r_ch, channels_label);
@@ -184,7 +183,7 @@ for c = 1:ntrial
     for sample = 1:min_trial_data
         c_sample = squeeze(c_data(sample,:,:)); % bands x channels
 
-        sparsity_vec = []; label_plot = [];
+        sparsity_vec = [];
 
         for idx_band = 1:nbands
             tmp = squeeze(c_sample(idx_band,:)); % 1 x channels
@@ -192,17 +191,9 @@ for c = 1:ntrial
             [tmp, label_plot_tmp] =  compute_features_icnic(tmp, type, o_l, o_r, c_l, c_r, nsparsity);
 
             sparsity_vec = [sparsity_vec; tmp];
-            label_plot = [label_plot, label_plot_tmp];
         end
 
         sparsity(sample, c, :) = sparsity_vec;
-    end
-end
-
-for idx_band = 1:nbands
-    for idx_s = 1:nsparsity
-        idx = (idx_band-1)*nbands+idx_s;
-        label_plot{idx} = [label_plot{idx}, ' ', bands_str{idx_band}];
     end
 end
 
@@ -299,7 +290,7 @@ eva_db = evalclusters(data_2D_noArtif, cluster_idx, 'DaviesBouldin');
 disp(['Davies-Bouldin Index: ' num2str(eva_db.CriterionValues)]);
 
 %% save the gmm
-save_gmm(gmm_model, mu_features, sigma_features, filenames, save_path_gmm, o_l, o_r, c_l, c_r, excl_chs, channels_label, bands(choosen_band), classes_icnic, threshold_gmm_ic, type)
+save_gmm(gmm_model, mu_features, sigma_features, filenames, save_path_gmm, o_l, o_r, c_l, c_r, excl_chs, channels_label, bands, classes_icnic, threshold_gmm_ic, type)
 
 
 %% extract and save data for the QDA
@@ -324,8 +315,6 @@ for idx_band = 1:nbands
             end
         end
     end
-    tmp_X = log(tmp_X);
-    tmp_X_all = log(tmp_X_all);
 
     X = [X, tmp_X];
     X_all = [X_all, tmp_X_all];
@@ -335,7 +324,7 @@ end
 % fisher score
 % occipital = {'P3', 'PZ', 'P4', 'POZ', 'O1', 'O2', 'P5', 'P1', 'P2', 'P6', 'PO5', 'PO3', 'PO4', 'PO6', 'PO7', 'PO8', 'OZ'}; 
 % [~, ch_occipital] = ismember(occipital, channels_label);
-central = {'FC3', 'FC1', 'FCz', 'FC2', 'FC4', 'C3', 'C1', 'Cz', 'C2', 'C4', 'CP3', 'CP1', 'CP2', 'CP4', 'Pz'}; 
+central = {'FC3', 'FC1', 'FCz', 'FC2', 'FC4', 'C3', 'C1', 'Cz', 'C2', 'C4', 'CP1', 'CP2', 'CPz', 'Fp1', 'Fp2'}; 
 [~, ch_central] = ismember(central, channels_label);
 ncentral = size(ch_central, 2);
 
@@ -347,19 +336,19 @@ for idx_ch_central=1:ncentral
 
     % IC
     for idx_band = 1:nbands
-        mu1 = mean(X(y == classes(1),idx_band, idx_ch));
-        sigma1 = std(X(y == classes(1),idx_band, idx_ch));
-        mu2 = mean(X(y == classes(2),idx_band,idx_ch));
-        sigma2 = std(X(y == classes(2),idx_band, idx_ch));
+        mu1 = mean(log(X(y == classes(1),idx_band, idx_ch)));
+        sigma1 = std(log(X(y == classes(1),idx_band, idx_ch)));
+        mu2 = mean(log(X(y == classes(2),idx_band,idx_ch)));
+        sigma2 = std(log(X(y == classes(2),idx_band, idx_ch)));
         fisher(idx_band*nbands -1, idx_ch_central) = abs(mu1 - mu2)^2 / (sigma1^2 + sigma2^2);
         label_fisher = [label_fisher, {['IC', bands_str{idx_band}]}];
 
 
         % all
-        mu1 = mean(X_all(y_all == classes(1), idx_band, idx_ch));
-        sigma1 = std(X_all(y_all == classes(1),idx_band, idx_ch));
-        mu2 = mean(X_all(y_all == classes(2),idx_band, idx_ch));
-        sigma2 = std(X_all(y_all == classes(2),idx_band, idx_ch));
+        mu1 = mean(log(X_all(y_all == classes(1), idx_band, idx_ch)));
+        sigma1 = std(log(X_all(y_all == classes(1),idx_band, idx_ch)));
+        mu2 = mean(log(X_all(y_all == classes(2),idx_band, idx_ch)));
+        sigma2 = std(log(X_all(y_all == classes(2),idx_band, idx_ch)));
         fisher(idx_band*nbands, idx_ch_central) = abs(mu1 - mu2)^2 / (sigma1^2 + sigma2^2);
         label_fisher = [label_fisher, {['traditional', bands_str{idx_band}]}];
     end
@@ -374,17 +363,18 @@ sgtitle('gmm ic and classical fisher score')
 
 % R^2
 for idx_band = 1:nbands
-    calc_r2_from_data(squeeze(X(:,idx_band,:)), y, 'Plot', true, 'ChanLabels', channels_label, 'title_data', ['QDA data | size data: ' num2str(size(X,1)) ' | band: ' bands_str{idx_band}]);
-    calc_r2_from_data(squeeze(X_all(:,idx_band,:)), y_all, 'Plot', true, 'ChanLabels', channels_label, 'title_data', ['all data | size data: ' num2str(size(X_all,1)) ' | band: ' bands_str{idx_band}]);
+    calc_r2_from_data(squeeze(log(X(:,idx_band,:))), y, 'Plot', true, 'ChanLabels', channels_label, 'title_data', ['QDA data | size data: ' num2str(size(X,1)) ' | band: ' bands_str{idx_band}]);
+    calc_r2_from_data(squeeze(log(X_all(:,idx_band,:))), y_all, 'Plot', true, 'ChanLabels', channels_label, 'title_data', ['all data | size data: ' num2str(size(X_all,1)) ' | band: ' bands_str{idx_band}]);
 end
 
 %% save data for qda
-channels_labels =  [{{'C3', 'C1', 'CP3', 'CP1', 'C2', 'C4', 'CP2', 'CP4'}}, {{'C3', 'C1', 'CP3', 'CP1', 'C2', 'C4', 'CP2', 'CP4'}}]; % firs 8-13 then 18-24
+channels_labels =  [{{}}, {{'C3','C4'}}]; % firs 8-13 then 18-24
+idx_channels = [];
 for i = 1:length(channels_labels)
     c_t = channels_labels{i};
-    [~, idx_channels] = ismember(channels_labels, channels_label);
+    [~, tmp_idx] = ismember(c_t, channels_label);
+    idx_channels = [idx_channels, {tmp_idx}];
 end
-[~, idx_channels] = ismember(channels_labels, channels_label);
 save(save_path_qda_dataset, 'X', 'y', 'trials', 'gmm_file', 'classes', 'idx_channels', 'channels_labels', 'filenames', 'bands')
 disp(['QDA model saved in ', save_path_qda_dataset]);
 
