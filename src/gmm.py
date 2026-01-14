@@ -75,65 +75,68 @@ class GMMClassifier:
         return True
 
 
-    def compute_sparsity_features(self, signal, nbands):
-        sparsity = np.zeros(self.nfeatures)
+    def compute_sparsity_features(self, c_signal):
         idx_sparsity = 0
-        
-        for idx_band in range(0, nbands):
-            c_signal = signal[idx_band,:]
-            # --- 1. Feature LI (Lateralization Index) ---
-            if self.type == 'cvsa':
-                P_left_window = np.mean(c_signal[self.o_l])
-                P_right_window = np.mean(c_signal[self.o_r])
-                denominator = P_right_window + P_left_window + np.finfo(float).eps
-                LAP_history = (P_right_window - P_left_window) / denominator
-                
-                sparsity[idx_sparsity] = np.abs(LAP_history) # LI
-                idx_sparsity += 1
-                sparsity[idx_sparsity] = np.log(min(P_right_window, P_left_window)) # Log of minimum power
-                idx_sparsity += 1
 
-            elif self.type == 'mi':
-                P_left_window = np.mean(c_signal[self.c_l])
-                P_right_window = np.mean(c_signal[self.c_r])
-                sparsity[idx_sparsity] = np.log(min(P_right_window, P_left_window)) # Log of minimum power
-                idx_sparsity += 1
-                
-            else:
-                return
-            
+        # --- 1. Feature LI (Lateralization Index) ---
+        if self.type == 'cvsa':
+            sparsity = np.zeros(3)
+            P_left_window = np.mean(c_signal[self.o_l])
+            P_right_window = np.mean(c_signal[self.o_r])
+            denominator = P_right_window + P_left_window + np.finfo(float).eps
+            LAP_history = (P_right_window - P_left_window) / denominator
 
-            # --- 2. Feature GI (Gini * Occipital Power) ---
-            if len(self.c_l) == 0 or len(self.c_r) == 0 or len(self.o_l) == 0 or len(self.o_r) == 0:
-                mean_roi = signal
-            else:
-                mean_roi = np.array([
-                    np.mean(c_signal[self.c_l]),
-                    np.mean(c_signal[self.c_r]),
-                    np.mean(c_signal[self.o_l]),
-                    np.mean(c_signal[self.o_r])
-                ])
-            mean_roi = np.abs(mean_roi)
-            mean_roi_ordered = np.sort(mean_roi)
-            n = len(mean_roi_ordered)
-            total_sum = np.sum(mean_roi_ordered)
-            if total_sum > 0:
-                sum_roi_p = 0
-                for i in range(n): 
-                    sum_roi_p += (n - i) * mean_roi_ordered[i]
-
-                gi = (1.0 / n) * (n + 1.0 - (2.0 * sum_roi_p) / total_sum)
-            else:
-                gi = 0
-
-            sparsity[idx_sparsity] = gi # GI
+            sparsity[idx_sparsity] = np.abs(LAP_history) # LI
             idx_sparsity += 1
-        
+            sparsity[idx_sparsity] = np.log(min(P_right_window, P_left_window)) # Log of minimum power
+            idx_sparsity += 1
+
+        elif self.type == 'mi':
+            sparsity = np.zeros(2)
+            P_left_window = np.mean(c_signal[self.c_l])
+            P_right_window = np.mean(c_signal[self.c_r])
+            sparsity[idx_sparsity] = np.log(min(P_right_window, P_left_window)) # Log of minimum power
+            idx_sparsity += 1
+
+        else:
+            return
+
+
+        # --- 2. Feature GI (Gini * Occipital Power) ---
+        if len(self.c_l) == 0 or len(self.c_r) == 0 or len(self.o_l) == 0 or len(self.o_r) == 0:
+            mean_roi = c_signal
+        else:
+            mean_roi = np.array([
+                np.mean(c_signal[self.c_l]),
+                np.mean(c_signal[self.c_r]),
+                np.mean(c_signal[self.o_l]),
+                np.mean(c_signal[self.o_r])
+            ])
+        mean_roi = np.abs(mean_roi)
+        mean_roi_ordered = np.sort(mean_roi)
+        n = len(mean_roi_ordered)
+        total_sum = np.sum(mean_roi_ordered)
+        if total_sum > 0:
+            sum_roi_p = 0
+            for i in range(n): 
+                sum_roi_p += (n - i) * mean_roi_ordered[i]
+
+            gi = (1.0 / n) * (n + 1.0 - (2.0 * sum_roi_p) / total_sum)
+        else:
+            gi = 0
+
+        sparsity[idx_sparsity] = gi # GI
+        idx_sparsity += 1
+
         return sparsity
 
     def classify(self, dfet):
         if dfet is None:
             return 
+        
+        if len(dfet) != self.nfeatures:
+            rospy.logerr(f"[{self.gmm_name}] Feature vector length mismatch: expected {self.nfeatures}, got {len(dfet)}.")
+            return
         
         dfet_std = (dfet - self.mu) / self.sigma
         dfet_std_2d = dfet_std.reshape(1, -1)
@@ -149,13 +152,13 @@ class GMMClassifier:
         nbands = msg.nbands
         all_bands = np.array(msg.bands).reshape(-1, 2)
         
-        reshaped_data = np.array(data).reshape(nchannels, nbands)
+        reshaped_data = np.array(data).reshape(nbands, nchannels) # [bands x channels]
         
         tmp = [] # [bands x channels]
         for i, c_band_features in enumerate(self.bands_features):
             for j, filter_band in enumerate(all_bands):
                 if np.array_equal(c_band_features, filter_band):
-                    tmp.append(reshaped_data[:, j])
+                    tmp.append(reshaped_data[j,:])
                     break 
                 
         if len(tmp) == 0:
@@ -165,11 +168,12 @@ class GMMClassifier:
         if len(self.bands_features) > 1:
             dfet = []
             for i in range(len(self.bands_features)):
-                c_features = self.compute_sparsity_features(np.array(tmp[i]), nbands)
+                c_features = self.compute_sparsity_features(tmp[i])
+
                 dfet.extend(c_features.tolist())
             dfet = np.array(dfet)
         else:
-            dfet = self.compute_sparsity_features(np.array(tmp), nbands)
+            dfet = self.compute_sparsity_features(tmp[0])
         
         [soft_proba, hard_prob] = self.classify(dfet)
         
