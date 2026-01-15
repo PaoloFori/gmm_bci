@@ -10,7 +10,7 @@ nclasses = length(classes);
 filterOrder = 4;
 avg = 1;
 threshold_gmm_ic = 0.7;
-channels_label = {'Fz', 'FC3', 'FC1', 'FCz', 'FC2', 'FC4', 'C3', 'C1', 'Cz', 'C2', 'C4', 'Fp1', 'CP1', 'CPz', 'CP2', 'Fp2'};
+channels_label = {'Fz', 'FC3', 'FC1', 'FCz', 'FC2', 'FC4', 'C3', 'C1', 'Cz', 'C2', 'C4', 'FP1', 'CP1', 'CPz', 'CP2', 'FP2'};
 
 
 %% Load file
@@ -53,14 +53,16 @@ for idx_file= 1: nFiles
     c_signal = c_signal(:,1:nchannels);
     sampleRate = header.SampleRate;
 
-    excl_chs = [];
+    excl_ch = {'FP1', 'FP2', 'EOG'};
+    [found, indices] = ismember(excl_ch, channels_label);
+    excl_chs = indices(found);
 
     % for power band using hilbert transformation and artefact remotion -----------------------------------------------
     bufferSize = floor(avg*sampleRate);
     chunkSize = 32;
     eog.filterOrder = 4;
-    eog.band = {'FP1', 'FP2'};
-    eog.label = excl_chs;
+    eog.band = [1 10];
+    eog.label = {'FP1', 'FP2'};
     eog.h_threshold = 75;
     eog.v_threshold = 75;
     picks.filterOrder = 4;
@@ -324,7 +326,7 @@ end
 % fisher score
 % occipital = {'P3', 'PZ', 'P4', 'POZ', 'O1', 'O2', 'P5', 'P1', 'P2', 'P6', 'PO5', 'PO3', 'PO4', 'PO6', 'PO7', 'PO8', 'OZ'}; 
 % [~, ch_occipital] = ismember(occipital, channels_label);
-central = {'FC3', 'FC1', 'FCz', 'FC2', 'FC4', 'C3', 'C1', 'Cz', 'C2', 'C4', 'CP1', 'CP2', 'CPz', 'Fp1', 'Fp2'}; 
+central = {'FC3', 'FC1', 'FCz', 'FC2', 'FC4', 'C3', 'C1', 'Cz', 'C2', 'C4', 'CP1', 'CP2', 'CPz'}; 
 [~, ch_central] = ismember(central, channels_label);
 ncentral = size(ch_central, 2);
 

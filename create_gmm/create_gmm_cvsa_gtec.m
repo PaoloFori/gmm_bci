@@ -19,11 +19,12 @@ for idx_band = 1:nbands
     artifacts{idx_band} = [];
 end
 classes = [730 731];      
-nchannels = 39;
+nchannels = 16;
 nclasses = length(classes);
 filterOrder = 4;
 avg = 1;% 0.75;
 threshold_gmm_ic = 0.7;
+channels_label = {'P7', 'P5', 'P3', 'P1', 'P2', 'P4', 'P6', 'P8', 'PO7', 'PO3', 'POz', 'PO4', 'PO8', 'O1', 'Oz', 'O2'};
 
 %% Load file
 [filenames, pathname] = uigetfile('*.gdf', 'Select GDF Files', 'MultiSelect', 'on');
@@ -43,12 +44,12 @@ for idx_file= 1: nFiles
     disp(['file (' num2str(idx_file) '/' num2str(nFiles)  '): ', filenames{idx_file}]);
     [c_signal,header] = sload(fullpath_file);
     c_signal = c_signal(:,1:nchannels);
-    channels_label = header.Label;
+%     channels_label = header.Label;
     sampleRate = header.SampleRate;
 
     excl_ch = {'FP1', 'FP2', 'EOG'};
-    [~, excl_chs] = ismember(excl_ch, channels_label);
-
+    [found, indices] = ismember(excl_ch, channels_label);
+    excl_chs = indices(found);
 
     disp('   [proc] power band');
     for idx_band = 1:nbands
@@ -58,8 +59,8 @@ for idx_file= 1: nFiles
         bufferSize = floor(avg*sampleRate);
         chunkSize = 32;
         eog.filterOrder = 4;
-        eog.band = [1 7];
-        eog.label = excl_ch;
+        eog.band = [1 10];
+        eog.label = {'FP1', 'FP2'};
         eog.h_threshold = 60;
         eog.v_threshold = 60;
         picks.filterOrder = 4;
@@ -159,10 +160,10 @@ sparsity = nan(min_trial_data, nbands, ntrial, nsparsity); % sample x band x tri
 % c_l_ch = {'FC1', 'C3', 'CP1', 'FC3', 'C1', 'CP3'};
 % c_r_ch = {'FC2', 'C4', 'CP2', 'FC4', 'C2', 'CP4'};
 
-o_l_ch = {'O1', 'PO5', 'PO3', 'PO7'};
-o_r_ch = {'O2', 'PO4', 'PO6', 'PO8'};
-c_l_ch = {'C3', 'CP1', 'C1', 'CP3'};
-c_r_ch = {'C4', 'CP2', 'C2', 'CP4'};
+o_l_ch = {'O1', 'PO3', 'PO7'};
+o_r_ch = {'O2', 'PO4', 'PO8'};
+c_l_ch = {};
+c_r_ch = {};
 
 [~, o_l] = ismember(o_l_ch, channels_label);
 [~, o_r] = ismember(o_r_ch, channels_label);
@@ -224,7 +225,7 @@ for k = K_range
             min_bic = gm_temp.BIC;
             best_gmm = gm_temp;
         end
-    catch
+    catch Messagge e
         continue;
     end
 end
@@ -345,7 +346,7 @@ end
 
 %% Check the data used for the QDA
 % fisher score
-occipital = {'P3', 'PZ', 'P4', 'POZ', 'O1', 'O2', 'P5', 'P1', 'P2', 'P6', 'PO5', 'PO3', 'PO4', 'PO6', 'PO7', 'PO8', 'OZ'}; 
+occipital = channels_label; 
 [~, ch_occipital] = ismember(occipital, channels_label);
 noccipital = size(ch_occipital, 2);
 
@@ -465,9 +466,8 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
     c_r_channels = join(c_r_channels, ", ");
     c_r_str = strjoin(arrayfun(@(x) sprintf('%d', x), c_r_idx, 'UniformOutput', false), ', ');
 
-    excl_channels = string(channels_labels(excluded_chs));
-    excl_channels = "'" + excl_channels + "'";
-    excl_channels = join(excl_channels, ", ");
+    format_ch = @(idx) strjoin(cellfun(@(x) ['''' x ''''], channels_labels(idx), 'UniformOutput', false), ', ');
+    excl_channels = format_ch(excluded_chs);
     excl_str = strjoin(arrayfun(@(x) sprintf('%d', x), excluded_chs, 'UniformOutput', false), ', ');
 
     % build the yaml

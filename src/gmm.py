@@ -162,7 +162,7 @@ class GMMClassifier:
                     break 
                 
         if len(tmp) == 0:
-            rospy.error(f"[{self.gmm_name}] No matching bands found between features and incoming data.")
+            rospy.logerr(f"[{self.gmm_name}] No matching bands found between features and incoming data.")
             return
         
         if len(self.bands_features) > 1:
@@ -174,6 +174,10 @@ class GMMClassifier:
             dfet = np.array(dfet)
         else:
             dfet = self.compute_sparsity_features(tmp[0])
+        
+        if(len(dfet) != self.nfeatures):
+            rospy.logerr(f"[{self.gmm_name}] Error in the feature extraction: expected {self.nfeatures} features, but got {len(dfet)}.")
+            return
         
         [soft_proba, hard_prob] = self.classify(dfet)
         
