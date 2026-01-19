@@ -160,7 +160,7 @@ artifacts_data = tmp_art;
 
 %% compute sparsity
 % define regions
-nsparsity = 1;
+nsparsity = 2;
 sparsity = nan(min_trial_data, ntrial, nsparsity*nbands); % sample x trial x sparsity*nbands
 % o_l_ch = {'P3', 'O1', 'P5', 'P1', 'PO5', 'PO3', 'PO7'};
 % o_r_ch = {'P4', 'O2', 'P2', 'P6', 'PO4', 'PO6', 'PO8'};
@@ -316,12 +316,12 @@ save_gmm(gmm_model, mu_features, sigma_features, filenames, save_path_gmm, o_l, 
 %% extract and save data for the QDA
 data = trial_data(minDurCue+minDurFix+1:end,:,:,:); % data x bands x channels x trial
 nsamples = size(data,1);
-X = []; X_all = []; X_nic = [];
+X = []; X_all = [];
 y = []; y_all = [];
 count_artifact = 0; count_all = 0; count_rejected = 0;
 for idx_band = 1:nbands
-    tmp_X = []; tmp_X_all = [];  tmp_X_nic = [];
-    y = []; y_all = []; y_ic = []; y_nic = [];
+    tmp_X = []; tmp_X_all = [];
+    y = []; y_all = [];
     trials = [];
     for idx_trial =  1:ntrial
         for idx_sample = 1:nsamples
@@ -333,51 +333,48 @@ for idx_band = 1:nbands
                     y = [y; trial_typ(idx_trial)];
                     trials = [trials; idx_trial];
                 else
-                    tmp_X_nic = [tmp_X_nic; data(idx_sample,idx_band,:,idx_trial)];
-                    y_nic = [y_nic; trial_typ(idx_trial)];
-                    count_rejected = count_rejected + 1/nbands;
+                    count_rejected = count_rejected + 1;
                 end
             else
-                count_artifact = count_artifact + 1/nbands;
+                count_artifact = count_artifact + 1;
             end
-            count_all = count_all + 1/nbands ;
+            count_all = count_all + 1;
         end
     end
 
     X = [X, tmp_X];
     X_all = [X_all, tmp_X_all];
-    X_nic = [X_nic, tmp_X_nic];
 end
-disp(['all sample for the trials: ' num2str(count_all) ', rejected for artifact: ' num2str(count_artifact) ', rejected gmm: ' num2str(count_rejected) ', acepted: ' num2str(size(X, 1))])
+disp(['all sample for the trials: ' num2str(count_all) ', rejected for artifact: ' num2str(count_artifact) ', rejected gmm: ' num2str(count_rejected)])
 
 %% Features selection QDA
 % fisher score
-fisher = nan(nbands*2, nchannels);
+fisher = nan(nbands*3, nchannels);
 label_fisher = [];
 
 for idx_ch=1:nchannels
     for idx_band = 1:nbands
         % IC
-        mu1 = mean(log(X(y == classes(1),idx_band, idx_ch)));
-        sigma1 = std(log(X(y == classes(1),idx_band, idx_ch)));
-        mu2 = mean(log(X(y == classes(2),idx_band,idx_ch)));
-        sigma2 = std(log(X(y == classes(2),idx_band, idx_ch)));
+        mu1 = mean(X_ic(y_ic == classes(1),idx_band, idx_ch));
+        sigma1 = std(X_ic(y_ic == classes(1),idx_band, idx_ch));
+        mu2 = mean(X_ic(y_ic == classes(2),idx_band,idx_ch));
+        sigma2 = std(X_ic(y_ic == classes(2),idx_band, idx_ch));
         fisher((idx_band-1)*3 + 1, idx_ch) = abs(mu1 - mu2)^2 / (sigma1^2 + sigma2^2);
         label_fisher = [label_fisher, {['IC', bands_str{idx_band}]}];
 
         % all
-        mu1 = mean(log(X_all(y_all == classes(1), idx_band, idx_ch)));
-        sigma1 = std(log(X_all(y_all == classes(1),idx_band, idx_ch)));
-        mu2 = mean(log(X_all(y_all == classes(2),idx_band, idx_ch)));
-        sigma2 = std(log(X_all(y_all == classes(2),idx_band, idx_ch)));
+        mu1 = mean(X_all(y_all == classes(1), idx_band, idx_ch));
+        sigma1 = std(X_all(y_all == classes(1),idx_band, idx_ch));
+        mu2 = mean(X_all(y_all == classes(2),idx_band, idx_ch));
+        sigma2 = std(X_all(y_all == classes(2),idx_band, idx_ch));
         fisher((idx_band-1)*3 +2, idx_ch) = abs(mu1 - mu2)^2 / (sigma1^2 + sigma2^2);
         label_fisher = [label_fisher, {['traditional', bands_str{idx_band}]}];
 
         % nic
-        mu1 = mean(log(X_nic(y_nic == classes(1), idx_band, idx_ch)));
-        sigma1 = std(log(X_nic(y_nic == classes(1),idx_band, idx_ch)));
-        mu2 = mean(log(X_nic(y_nic == classes(2),idx_band, idx_ch)));
-        sigma2 = std(log(X_nic(y_nic == classes(2),idx_band, idx_ch)));
+        mu1 = mean(X_nic(y_nic == classes(1), idx_band, idx_ch));
+        sigma1 = std(X_nic(y_nic == classes(1),idx_band, idx_ch));
+        mu2 = mean(X_nic(y_nic == classes(2),idx_band, idx_ch));
+        sigma2 = std(X_nic(y_nic == classes(2),idx_band, idx_ch));
         fisher((idx_band-1)*3 +3, idx_ch) = abs(mu1 - mu2)^2 / (sigma1^2 + sigma2^2);
         label_fisher = [label_fisher, {['nic', bands_str{idx_band}]}];
     end
@@ -415,9 +412,9 @@ grid on;
 
 % R^2
 for idx_band = 1:nbands
-    r2_ic_allch = calc_r2_from_data(squeeze(log(X(:,idx_band,:))), y, 'Plot', false, 'ChanLabels', channels_label); 
-    r2_all_allch = calc_r2_from_data(squeeze(log(X_all(:,idx_band,:))), y_all, 'Plot', false, 'ChanLabels', channels_label);
-    r2_nic_allch = calc_r2_from_data(squeeze(log(X_nic(:,idx_band,:))), y_nic, 'Plot', false, 'ChanLabels', channels_label);
+    r2_ic_allch = calc_r2_from_data(squeeze(X_ic(:,idx_band,:)), y_ic, 'Plot', false, 'ChanLabels', channels_label); 
+    r2_all_allch = calc_r2_from_data(squeeze(X_all(:,idx_band,:)), y_all, 'Plot', false, 'ChanLabels', channels_label);
+    r2_nic_allch = calc_r2_from_data(squeeze(X_nic(:,idx_band,:)), y_nic, 'Plot', false, 'ChanLabels', channels_label);
 
 
     figure('Color', 'w', 'Name', ['R2 Gain - Band ' bands_str{idx_band}], 'Position', [150, 150, 1000, 500]);
@@ -444,7 +441,7 @@ for idx_band = 1:nbands
 end
 
 %% save data for qda
-channels_labels =  [{{}}, {{'C3','C4','C2'}}]; % firs 8-13 then 18-24
+channels_labels =  [{{}}, {{'C3','C4','C2', 'Cz', 'CPz'}}]; % firs 8-13 then 18-24
 idx_channels = [];
 for i = 1:length(channels_labels)
     c_t = channels_labels{i};
@@ -547,8 +544,8 @@ function save_gmm(gmm_model, mu_features, sigma_features, files, save_path_gmm, 
                      '  name: "gmm_model"\n' ...
                      '  filenames: "%s"\n'...
                      '  params:\n' ...
-                     '    central_idx: [%s]\n' ...
-                     '    centrial: [%s]\n' ...
+                     '    central_idx: [%s]\n'
+                     '    centrial: [%s]\n'
                      '    occipital_left_idx: [%s]\n' ...
                      '    occipital_left: [%s]\n' ...
                      '    occipital_right_idx: [%s]\n' ...

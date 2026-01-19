@@ -65,6 +65,9 @@ class GMMClassifier:
             self.model.precisions_cholesky_ = np.array(
                 [np.linalg.cholesky(np.linalg.inv(cov)) for cov in covariances]
                 )
+            
+            if self.type == 'mi':
+                self.c_c = np.sort(np.array(params['central_idx']) - 1)
         except KeyError as e:
             rospy.logwarn(f"[{self.gmm_name}] YAML file error parameter: {e}")
             return False
@@ -91,42 +94,40 @@ class GMMClassifier:
             sparsity[idx_sparsity] = np.log(min(P_right_window, P_left_window)) # Log of minimum power
             idx_sparsity += 1
 
-        elif self.type == 'mi':
-            sparsity = np.zeros(2)
-            P_left_window = np.mean(c_signal[self.c_l])
-            P_right_window = np.mean(c_signal[self.c_r])
-            sparsity[idx_sparsity] = np.log(min(P_right_window, P_left_window)) # Log of minimum power
+            # --- 2. Feature GI (Gini * Occipital Power) ---
+            if len(self.c_l) == 0 or len(self.c_r) == 0 or len(self.o_l) == 0 or len(self.o_r) == 0:
+                mean_roi = c_signal
+            else:
+                mean_roi = np.array([
+                    np.mean(c_signal[self.c_l]),
+                    np.mean(c_signal[self.c_r]),
+                    np.mean(c_signal[self.o_l]),
+                    np.mean(c_signal[self.o_r])
+                ])
+            mean_roi = np.abs(mean_roi)
+            mean_roi_ordered = np.sort(mean_roi)
+            n = len(mean_roi_ordered)
+            total_sum = np.sum(mean_roi_ordered)
+            if total_sum > 0 and n > 0:
+                sum_roi_p = 0
+                for i in range(n): 
+                    sum_roi_p += (n - i) * mean_roi_ordered[i]
+
+                gi = (1.0 / n) * (n + 1.0 - (2.0 * sum_roi_p) / total_sum)
+            else:
+                gi = 0
+
+            sparsity[idx_sparsity] = gi # GI
             idx_sparsity += 1
-
-        else:
-            return
-
-
-        # --- 2. Feature GI (Gini * Occipital Power) ---
-        if len(self.c_l) == 0 or len(self.c_r) == 0 or len(self.o_l) == 0 or len(self.o_r) == 0:
-            mean_roi = c_signal
-        else:
-            mean_roi = np.array([
-                np.mean(c_signal[self.c_l]),
-                np.mean(c_signal[self.c_r]),
-                np.mean(c_signal[self.o_l]),
-                np.mean(c_signal[self.o_r])
-            ])
-        mean_roi = np.abs(mean_roi)
-        mean_roi_ordered = np.sort(mean_roi)
-        n = len(mean_roi_ordered)
-        total_sum = np.sum(mean_roi_ordered)
-        if total_sum > 0 and n > 0:
-            sum_roi_p = 0
-            for i in range(n): 
-                sum_roi_p += (n - i) * mean_roi_ordered[i]
-
-            gi = (1.0 / n) * (n + 1.0 - (2.0 * sum_roi_p) / total_sum)
-        else:
-            gi = 0
-
-        sparsity[idx_sparsity] = gi # GI
-        idx_sparsity += 1
+        elif self.type == 'mi':
+            P_central_left = np.mean(c_signal[self.c_l])
+            P_central_right = np.mean(c_signal[self.c_r])
+            P_central = np.mean(c_signal[self.c_c])
+            motors_roi = np.array([P_central_left, P_central_right, P_central])
+            baseline = np.median(motors_roi)
+            active_area = min(motors_roi)
+            val = np.log((baseline + np.finfo(float).eps) / (active_area + np.finfo(float).eps))
+            sparsity = np.array([val])
 
         return sparsity
 
