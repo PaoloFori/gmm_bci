@@ -1,6 +1,7 @@
 clear all; % close all;
 
 addpath('/home/paolo/cvsa/ic_cvsa_ws/src/analysis_bci/equal_ros')
+addpath('/home/paolo/cvsa/ic_cvsa_ws/src/analysis_bci/utils')
 
 %% Initialization
 DATAPAH = '/home/paolo/cvsa/ic_cvsa_ws/src/';
@@ -10,7 +11,7 @@ nclasses = length(classes);
 filterOrder = 4;
 avg = 1;
 threshold_gmm_ic = 0.7;
-channels_label = {'Fz', 'FC3', 'FC1', 'FCz', 'FC2', 'FC4', 'C3', 'C1', 'Cz', 'C2', 'C4', 'FP1', 'CP1', 'CPz', 'CP2', 'FP2'};
+channels_label = {'Fz', 'FC3', 'FC1', 'FCz', 'FC2', 'FC4', 'C3', 'C1', 'Cz', 'C2', 'C4', 'Fp1', 'CP1', 'CPz', 'CP2', 'Fp2'};
 
 
 %% Load file
@@ -22,7 +23,8 @@ subject = filenames{1}(1:2);
 time_str = datestr(now, 'ddmmyyyy_HHMMSS');
 gmm_file = ['gmm_' subject '_' time_str '_mi.yaml'];
 save_path_gmm = [DATAPAH, 'gmm_bci/cfg/' gmm_file];
-save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/data_' subject '_' time_str '_mi.mat'];
+extra = '_dummy'; % '' or '_dummy'
+save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/data_' subject '_' time_str '_mi' extra '.mat'];
 
 %% understand the band
 nFiles = length(filenames);
@@ -53,7 +55,7 @@ for idx_file= 1: nFiles
     c_signal = c_signal(:,1:nchannels);
     sampleRate = header.SampleRate;
 
-    excl_ch = {'FP1', 'FP2', 'EOG'};
+    excl_ch = {'Fp1', 'Fp2', 'EOG'};
     [found, indices] = ismember(excl_ch, channels_label);
     excl_chs = indices(found);
 
@@ -62,7 +64,7 @@ for idx_file= 1: nFiles
     chunkSize = 32;
     eog.filterOrder = 4;
     eog.band = [1 10];
-    eog.label = {'FP1', 'FP2'};
+    eog.label = {'Fp1', 'Fp2'};
     eog.h_threshold = 60;
     eog.v_threshold = 60;
     picks.filterOrder = 4;
@@ -322,11 +324,12 @@ count_artifact = 0; count_all = 0; count_rejected = 0;
 for idx_band = 1:nbands
     tmp_X = []; tmp_X_all = [];  tmp_X_nic = [];
     y = []; y_all = []; y_ic = []; y_nic = [];
-    trials = [];
+    trials = []; trials_all = [];
     for idx_trial =  1:ntrial
         for idx_sample = 1:nsamples
             if artifacts_cf(idx_sample,idx_trial) == 0 % no artifact
                 tmp_X_all = [tmp_X_all; data(idx_sample,idx_band,:,idx_trial)];
+                trials_all = [trials_all, idx_trial];
                 y_all = [y_all; trial_typ(idx_trial)];
                 if cluster_labels(idx_sample, idx_trial) >= threshold_gmm_ic % IC state
                     tmp_X = [tmp_X; data(idx_sample,idx_band,:,idx_trial)];
@@ -444,7 +447,7 @@ for idx_band = 1:nbands
 end
 
 %% save data for qda
-channels_labels =  [{{}}, {{'C3','C4','C2'}}]; % firs 8-13 then 18-24
+channels_labels =  [{{'C4'}}, {{'C4'}}]; % firs 8-13 then 18-24
 idx_channels = [];
 for i = 1:length(channels_labels)
     c_t = channels_labels{i};

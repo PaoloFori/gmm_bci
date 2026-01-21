@@ -15,7 +15,7 @@ class GMMClassifier:
         try:
             self.path_decoder = rospy.get_param('~path_gmm_model')
         except KeyError as e:
-            rospy.logfatal(f"[{self.gmm_name}] Parametro mancante: {e}. Assicurati di lanciarlo con un launch file.")
+            rospy.logfatal(f"[{self.gmm_name}] Missing parameter: {e}.")
             return
         conf = self.configure()
         

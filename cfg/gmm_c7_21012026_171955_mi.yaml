@@ -1,0 +1,41 @@
+GmmModelCfg:
+  name: "gmm_model"
+  filenames: "c7.20260121.170907.calibration.mi_bhbf.gdf;
+c7.20260121.171237.calibration.mi_bhbf.gdf;
+c7.20260121.171608.calibration.mi_bhbf.gdf"
+  params:
+    central_idx: [9, 14, 4]
+    centrial: ['Cz', 'CPz', 'FCz']
+    occipital_left_idx: []
+    occipital_left: []
+    occipital_right_idx: []
+    occipital_right: []
+    central_left_idx: [7, 13, 8]
+    central_left: ['C3', 'CP1', 'C1']
+    central_right_idx: [11, 15, 10]
+    central_right: ['C4', 'CP2', 'C2']
+    excluded_idx: [12, 16]
+    excluded: ['Fp1', 'Fp2']
+    mu: [0.27304905, 0.23449715]
+    sigma: [0.19333384, 0.18034728]
+    band: 
+    - [8, 13]
+    - [18, 24]
+    threshold_gmm_ic: 5.000000e-01
+    threshold_gmm_ic_discarded: 4.000000e-01
+  model_params:
+    nfeatures: 2
+    type: "mi"
+    classes: [1, 0] # 0=NIC, 1=IC
+    K: 2
+    weights: [0.60398264, 0.39601736]
+    means: 
+    - [0.36252331, 0.45156502]
+    - [-0.55289946, -0.68870071]
+    covariances: 
+    - 
+      - [1.09775591, -0.15831562]
+      - [-0.15831562, 1.02210990]
+    - 
+      - [0.34410844, -0.04490820]
+      - [-0.04490820, 0.18031429]
