@@ -10,7 +10,7 @@ nchannels = 16;
 nclasses = length(classes);
 filterOrder = 4;
 avg = 1;
-threshold_gmm_ic = 0.7;
+threshold_gmm_ic = 0.5;
 channels_label = {'Fz', 'FC3', 'FC1', 'FCz', 'FC2', 'FC4', 'C3', 'C1', 'Cz', 'C2', 'C4', 'Fp1', 'CP1', 'CPz', 'CP2', 'Fp2'};
 
 
@@ -23,8 +23,7 @@ subject = filenames{1}(1:2);
 time_str = datestr(now, 'ddmmyyyy_HHMMSS');
 gmm_file = ['gmm_' subject '_' time_str '_mi.yaml'];
 save_path_gmm = [DATAPAH, 'gmm_bci/cfg/' gmm_file];
-extra = '_dummy'; % '' or '_dummy'
-save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/data_' subject '_' time_str '_mi' extra '.mat'];
+save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/data_' subject '_' time_str '_mi.mat'];
 
 %% understand the band
 nFiles = length(filenames);
@@ -447,7 +446,7 @@ for idx_band = 1:nbands
 end
 
 %% save data for qda
-channels_labels =  [{{'C4'}}, {{'C4'}}]; % firs 8-13 then 18-24
+channels_labels =  [{{'C3'}}, {{'C3'}}]; % firs 8-13 then 18-24
 idx_channels = [];
 for i = 1:length(channels_labels)
     c_t = channels_labels{i};
@@ -458,6 +457,10 @@ save(save_path_qda_dataset, 'X', 'y', 'trials', 'gmm_file', 'classes', 'idx_chan
 disp(['QDA model saved in ', save_path_qda_dataset]);
 
 
+save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/data_' subject '_' time_str '_mi_dummy.mat'];
+X = X_all; y = y_all; trials = trials_all;
+save(save_path_qda_dataset, 'X', 'y', 'trials', 'gmm_file', 'classes', 'idx_channels', 'channels_labels', 'filenames', 'bands')
+disp(['QDA model saved in ', save_path_qda_dataset]);
 
 
 %% ----------- FUNCTIONS --------
