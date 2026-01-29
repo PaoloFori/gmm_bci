@@ -22,8 +22,8 @@ end
 subject = filenames{1}(1:2);
 time_str = datestr(now, 'ddmmyyyy_HHMMSS');
 gmm_file = ['gmm_' subject '_' time_str '_mi.yaml'];
-save_path_gmm = [DATAPAH, 'gmm_bci/cfg/' gmm_file];
-save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/data_' subject '_' time_str '_mi.mat'];
+save_path_gmm = [DATAPAH, 'gmm_bci/cfg/mi/' gmm_file];
+save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/mi/data_' subject '_' time_str '_mi.mat'];
 
 %% understand the band
 nFiles = length(filenames);
@@ -254,7 +254,8 @@ for k = K_range
             min_bic = gm_temp.BIC;
             best_gmm = gm_temp;
         end
-    catch
+    catch e
+        fprintf('Failed to fit GMM for k=%d: %s\n', k, e.message);
         continue;
     end
 end
@@ -446,7 +447,7 @@ for idx_band = 1:nbands
 end
 
 %% save data for qda
-channels_labels =  [{{'C3'}}, {{'C3'}}]; % firs 8-13 then 18-24
+channels_labels =  [{{'C4'}}, {{'C4'}}]; % firs 8-13 then 18-24
 idx_channels = [];
 for i = 1:length(channels_labels)
     c_t = channels_labels{i};
@@ -457,10 +458,10 @@ save(save_path_qda_dataset, 'X', 'y', 'trials', 'gmm_file', 'classes', 'idx_chan
 disp(['QDA model saved in ', save_path_qda_dataset]);
 
 
-save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/data_' subject '_' time_str '_mi_dummy.mat'];
+save_path_qda_dataset_D = [DATAPAH 'qda_bci/create_qda/datasets/gmm/mi/data_' subject '_' time_str '_mi_trad.mat'];
 X = X_all; y = y_all; trials = trials_all;
-save(save_path_qda_dataset, 'X', 'y', 'trials', 'gmm_file', 'classes', 'idx_channels', 'channels_labels', 'filenames', 'bands')
-disp(['QDA model saved in ', save_path_qda_dataset]);
+save(save_path_qda_dataset_D, 'X', 'y', 'trials', 'gmm_file', 'classes', 'idx_channels', 'channels_labels', 'filenames', 'bands')
+disp(['QDA model saved in ', save_path_qda_dataset_D]);
 
 
 %% ----------- FUNCTIONS --------

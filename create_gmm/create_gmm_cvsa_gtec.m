@@ -23,8 +23,8 @@ nchannels = 16;
 nclasses = length(classes);
 filterOrder = 4;
 avg = 1;% 0.75;
-threshold_gmm_ic = 0.7;
-channels_label = {'P7', 'P5', 'P3', 'P1', 'P2', 'P4', 'P6', 'P8', 'PO7', 'PO3', 'POz', 'PO4', 'PO8', 'O1', 'Oz', 'O2'};
+threshold_gmm_ic = 0.5;
+channels_label = {'P5', 'P3', 'P1', 'P2', 'P4', 'P6', 'PO7', 'PO3', 'POz', 'PO4', 'PO8', 'FP1', 'O1', 'Oz', 'O2', 'FP2'};
 
 %% Load file
 [filenames, pathname] = uigetfile('*.gdf', 'Select GDF Files', 'MultiSelect', 'on');
@@ -34,8 +34,7 @@ end
 subject = filenames{1}(1:2);
 time_str = datestr(now, 'ddmmyyyy_HHMMSS');
 gmm_file = ['gmm_' subject '_' time_str '_cvsa.yaml'];
-save_path_gmm = [DATAPAH, 'gmm_bci/cfg/' gmm_file];
-save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/data_' subject '_' time_str '_cvsa.mat'];
+save_path_gmm = [DATAPAH, 'gmm_bci/cfg/cvsa/' gmm_file];
 
 %% concatenate the files
 nFiles = length(filenames);
@@ -160,8 +159,8 @@ sparsity = nan(min_trial_data, nbands, ntrial, nsparsity); % sample x band x tri
 % c_l_ch = {'FC1', 'C3', 'CP1', 'FC3', 'C1', 'CP3'};
 % c_r_ch = {'FC2', 'C4', 'CP2', 'FC4', 'C2', 'CP4'};
 
-o_l_ch = {'O1', 'PO3', 'PO7'};
-o_r_ch = {'O2', 'PO4', 'PO8'};
+o_l_ch = {'O1', 'PO3', 'PO7', 'P3'};
+o_r_ch = {'O2', 'PO4', 'PO8', 'P4'};
 c_l_ch = {};
 c_r_ch = {};
 
@@ -225,7 +224,8 @@ for k = K_range
             min_bic = gm_temp.BIC;
             best_gmm = gm_temp;
         end
-    catch Messagge e
+    catch e
+        fprintf('Failed to fit GMM for k=%d: %s\n', k, e.message);
         continue;
     end
 end
@@ -328,12 +328,13 @@ data = squeeze(trial_data(minDurCue+minDurFix+1:end,choosen_band,:,:)); % take j
 nsamples = size(data,1);
 X = []; X_all = [];
 y = []; y_all = [];
-trials = [];
+trials = []; trials_all = [];
 for idx_trial =  1:ntrial
     for idx_sample = 1:nsamples
         if artifacts_cf(idx_sample,idx_trial) == 0 % no artifact
             X_all = [X_all; data(idx_sample,:,idx_trial)];
             y_all = [y_all; trial_typ(idx_trial)];
+            trials_all = [trials_all; idx_trial];
             if cluster_labels(idx_sample, idx_trial) >= threshold_gmm_ic % IC state
                 X = [X; data(idx_sample,:,idx_trial)];
                 y = [y; trial_typ(idx_trial)];
@@ -384,10 +385,14 @@ calc_r2_from_data(log(X_all), y_all, 'Plot', true, 'ChanLabels', channels_label,
 %% save data for qda
 channels_labels =  {'P5', 'PO7', 'O1', 'PO3', 'P6', 'PO8', 'O2', 'PO4'}; [~, idx_channels] = ismember(channels_labels, channels_label);
 bands = bands(choosen_band);
+save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/data_' subject '_' time_str '_cvsa.mat'];
 save(save_path_qda_dataset, 'X', 'y', 'trials', 'gmm_file', 'classes', 'idx_channels', 'channels_labels', 'filenames', 'bands')
 disp(['QDA model saved in ', save_path_qda_dataset]);
 
-
+save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/data_' subject '_' time_str '_cvsa_trad.mat'];
+X = X_all; y = y_all; trials = trials_all;
+save(save_path_qda_dataset, 'X', 'y', 'trials', 'gmm_file', 'classes', 'idx_channels', 'channels_labels', 'filenames', 'bands')
+disp(['QDA model saved in ', save_path_qda_dataset]);
 
 
 

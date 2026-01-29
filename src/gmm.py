@@ -91,7 +91,7 @@ class GMMClassifier:
 
             sparsity[idx_sparsity] = np.abs(LAP_history) # LI
             idx_sparsity += 1
-            sparsity[idx_sparsity] = np.log(min(P_right_window, P_left_window)) # Log of minimum power
+            sparsity[idx_sparsity] = np.log(min(P_right_window, P_left_window) / (np.sum(c_signal) + np.finfo(float).eps)) # Log of minimum power
             idx_sparsity += 1
 
             # --- 2. Feature GI (Gini * Occipital Power) ---
