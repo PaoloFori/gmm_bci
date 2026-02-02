@@ -383,16 +383,16 @@ calc_r2_from_data(log(X_all), y_all, 'Plot', true, 'ChanLabels', channels_label,
 
 
 %% save data for qda
-channels_labels =  {'P5', 'PO7', 'O1', 'PO3', 'P6', 'PO8', 'O2', 'PO4'}; [~, idx_channels] = ismember(channels_labels, channels_label);
+channels_labels =  {'PO7', 'PO8', 'O1', 'O2'}; [~, idx_channels] = ismember(channels_labels, channels_label);
 bands = bands(choosen_band);
-save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/data_' subject '_' time_str '_cvsa.mat'];
+save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/cvsa/data_' subject '_' time_str '_cvsa.mat'];
 save(save_path_qda_dataset, 'X', 'y', 'trials', 'gmm_file', 'classes', 'idx_channels', 'channels_labels', 'filenames', 'bands')
 disp(['QDA model saved in ', save_path_qda_dataset]);
 
-save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/data_' subject '_' time_str '_cvsa_trad.mat'];
+save_path_qda_dataset_trad = [DATAPAH 'qda_bci/create_qda/datasets/gmm/cvsa/data_' subject '_' time_str '_cvsa_trad.mat'];
 X = X_all; y = y_all; trials = trials_all;
-save(save_path_qda_dataset, 'X', 'y', 'trials', 'gmm_file', 'classes', 'idx_channels', 'channels_labels', 'filenames', 'bands')
-disp(['QDA model saved in ', save_path_qda_dataset]);
+save(save_path_qda_dataset_trad, 'X', 'y', 'trials', 'gmm_file', 'classes', 'idx_channels', 'channels_labels', 'filenames', 'bands')
+disp(['QDA model saved in ', save_path_qda_dataset_trad]);
 
 
 
