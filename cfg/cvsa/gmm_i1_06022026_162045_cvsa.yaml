@@ -1,0 +1,40 @@
+GmmModelCfg:
+  name: "gmm_model"
+  filenames: "i1.20260206.160658.calibration.cvsa_lbrb.gdf;
+i1.20260206.161046.calibration.cvsa_lbrb.gdf;
+i1.20260206.161438.calibration.cvsa_lbrb.gdf"
+  params:
+    occipital_left_idx: [13, 8, 7, 2]
+    occipital_left: ['O1', 'PO3', 'PO7', 'P3']
+    occipital_right_idx: [15, 10, 11, 5]
+    occipital_right: ['O2', 'PO4', 'PO8', 'P4']
+    central_left_idx: []
+    central_left: []
+    central_right_idx: []
+    central_right: []
+    excluded_idx: [12, 16]
+    excluded: ['FP1', 'FP2']
+    mu: [0.12070537, -3.14372140, 0.37392491]
+    sigma: [0.08937487, 0.22665625, 0.08082585]
+    band: 
+    - [8, 14]
+    threshold_gmm_ic: 5.000000e-01
+    threshold_gmm_ic_discarded: 4.000000e-01
+  model_params:
+    nfeatures: 3
+    type: "cvsa"
+    classes: [1, 0] # 0=NIC, 1=IC
+    K: 2
+    weights: [0.45433201, 0.54566799]
+    means: 
+    - [0.72009490, -0.25460017, 0.13852319]
+    - [-0.59956268, 0.21198422, -0.11533665]
+    covariances: 
+    - 
+      - [0.97828628, -0.64721470, 0.28807705]
+      - [-0.64721470, 1.15611694, -0.77096061]
+      - [0.28807705, -0.77096061, 0.89091442]
+    - 
+      - [0.22640800, -0.12739301, 0.04912073]
+      - [-0.12739301, 0.77065222, -0.72745689]
+      - [0.04912073, -0.72745689, 1.06109332]

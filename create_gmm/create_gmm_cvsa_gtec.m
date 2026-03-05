@@ -180,7 +180,7 @@ for c = 1:ntrial
         for idx_band = 1:nbands
             tmp = squeeze(c_sample(idx_band,:)); % 1 x channels
 
-            [sparsity(sample, idx_band, c,:), ~] = compute_features_icnic(tmp, type, o_l, o_r, c_l, c_r, nsparsity);
+            [sparsity(sample, idx_band, c,:), ~] = compute_features_icnic_cvsa(tmp, type, o_l, o_r, c_l, c_r, nsparsity);
         end
     end
 end
@@ -328,6 +328,7 @@ data = squeeze(trial_data(minDurCue+minDurFix+1:end,choosen_band,:,:)); % take j
 nsamples = size(data,1);
 X = []; X_all = [];
 y = []; y_all = [];
+count_artifact = 0; count_all = 0; count_rejected = 0;
 trials = []; trials_all = [];
 for idx_trial =  1:ntrial
     for idx_sample = 1:nsamples
@@ -339,10 +340,16 @@ for idx_trial =  1:ntrial
                 X = [X; data(idx_sample,:,idx_trial)];
                 y = [y; trial_typ(idx_trial)];
                 trials = [trials; idx_trial];
+            else
+                count_rejected = count_rejected + 1;
             end
+        else
+            count_artifact = count_artifact + 1;
         end
+        count_all = count_all + 1;
     end
 end
+disp(['all sample for the trials: ' num2str(count_all) ', rejected for artifact: ' num2str(count_artifact) ', rejected gmm: ' num2str(count_rejected) ', acepted: ' num2str(size(X, 1))])
 
 
 %% Check the data used for the QDA
@@ -383,7 +390,7 @@ calc_r2_from_data(log(X_all), y_all, 'Plot', true, 'ChanLabels', channels_label,
 
 
 %% save data for qda
-channels_labels =  {'PO7', 'PO8', 'O1', 'O2'}; [~, idx_channels] = ismember(channels_labels, channels_label);
+channels_labels =  {'PO7', 'PO3', 'PO4', 'PO8', 'O1', 'O2'}; [~, idx_channels] = ismember(channels_labels, channels_label);
 bands = bands(choosen_band);
 save_path_qda_dataset = [DATAPAH 'qda_bci/create_qda/datasets/gmm/cvsa/data_' subject '_' time_str '_cvsa.mat'];
 save(save_path_qda_dataset, 'X', 'y', 'trials', 'gmm_file', 'classes', 'idx_channels', 'channels_labels', 'filenames', 'bands')
