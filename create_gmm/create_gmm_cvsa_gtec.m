@@ -22,7 +22,7 @@ classes = [730 731];
 nchannels = 16;
 nclasses = length(classes);
 filterOrder = 4;
-avg = 1;% 0.75;
+avg = 0.25;% 0.75;
 threshold_gmm_ic = 0.5;
 channels_label = {'P5', 'P3', 'P1', 'P2', 'P4', 'P6', 'PO7', 'PO3', 'POz', 'PO4', 'PO8', 'FP1', 'O1', 'Oz', 'O2', 'FP2'};
 
